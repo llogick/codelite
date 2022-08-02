@@ -469,14 +469,15 @@ class WXDLLIMPEXP_CL Diagnostic : public Serializable
 {
     Range m_range;
     wxString m_message;
+    int m_severity;
 
 public:
     virtual void FromJSON(const JSONItem& json);
     virtual JSONItem ToJSON(const wxString& name) const;
-
-    Diagnostic(const Range& range, const wxString& message)
+    Diagnostic(const Range& range, const wxString& message, const int& severity)
         : m_range(range)
         , m_message(message)
+        , m_severity(severity)
     {
     }
     Diagnostic() {}
@@ -493,6 +494,12 @@ public:
         return *this;
     }
     const wxString& GetMessage() const { return m_message; }
+    Diagnostic& SetSeverity(const int& severity)
+    {
+        this->m_severity = severity;
+        return *this;
+    }
+    const int& GetSeverity() const { return m_severity; }
 };
 
 class WXDLLIMPEXP_CL DocumentSymbol : public Serializable

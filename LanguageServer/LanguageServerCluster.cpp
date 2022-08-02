@@ -703,8 +703,24 @@ void LanguageServerCluster::OnSetDiagnostics(LSPEvent& event)
     if(editor) {
         editor->DelAllCompilerMarkers();
         for(const LSP::Diagnostic& d : event.GetDiagnostics()) {
-            // LSP uses 1 based line numbers
-            editor->SetErrorMarker(d.GetRange().GetStart().GetLine(), d.GetMessage());
+            switch(d.GetSeverity()) {
+            case 1:
+                // LSP uses 1 based line numbers
+                editor->SetErrorMarker(d.GetRange().GetStart().GetLine(), "Diag Error:\n\n" + d.GetMessage());
+                break;
+            case 2:
+                editor->SetWarningMarker(d.GetRange().GetStart().GetLine(), "Diag Warning:\n\n" + d.GetMessage());
+                break;
+            case 3:
+                editor->SetWarningMarker(d.GetRange().GetStart().GetLine(), "Diag Info:\n\n" + d.GetMessage());
+                break;
+            case 4:
+                editor->SetWarningMarker(d.GetRange().GetStart().GetLine(), "Diag Hint:\n\n" + d.GetMessage());
+                break;
+            default:
+                editor->SetErrorMarker(d.GetRange().GetStart().GetLine(), d.GetMessage());
+                break;
+            }
         }
     }
 }

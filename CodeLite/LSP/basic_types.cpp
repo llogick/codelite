@@ -249,6 +249,7 @@ JSONItem Hover::ToJSON(const wxString& name) const
 void Diagnostic::FromJSON(const JSONItem& json)
 {
     m_range.FromJSON(json.namedObject("range"));
+    m_severity = json.namedObject("severity").toInt(1);
     m_message = json.namedObject("message").toString();
 }
 
@@ -256,6 +257,7 @@ JSONItem Diagnostic::ToJSON(const wxString& name) const
 {
     JSONItem json = JSONItem::createObject(name);
     json.append(m_range.ToJSON("range"));
+    json.addProperty("severity", GetSeverity());
     json.addProperty("message", GetMessage());
     return json;
 }
