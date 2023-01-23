@@ -105,11 +105,11 @@ template <typename T> bool WriteStdin(const T& buffer, HANDLE hStdin, HANDLE hPr
         DWORD dwWritten = 0;
         if(!WriteFile(hStdin, buffer.c_str() + offset, bytesLeft, &dwWritten, NULL)) {
             int errorCode = GetLastError();
-            clDEBUG() << ">> WriteStdin: (WriteFile) error:" << errorCode << endl;
+            LOG_IF_DEBUG { clDEBUG() << ">> WriteStdin: (WriteFile) error:" << errorCode << endl; }
             return false;
         }
         if(!CheckIsAlive(hProcess)) {
-            clDEBUG() << "WriteStdin failed. Process is not alive" << endl;
+            LOG_IF_DEBUG { clDEBUG() << "WriteStdin failed. Process is not alive" << endl; }
             return false;
         }
         if(dwWritten == 0) {
@@ -162,11 +162,11 @@ public:
             std::string cstr;
             if(Q.ReceiveTimeout(50, cstr) == wxMSGQUEUE_NO_ERROR) {
                 if(WriteStdin(cstr, hStdin, thr->m_hProcess)) {
-                    clDEBUG1() << "Writer thread: wrote buffer of" << cstr.length() << "bytes";
+                    LOG_IF_TRACE { clDEBUG1() << "Writer thread: wrote buffer of" << cstr.length() << "bytes"; }
                 }
             }
         }
-        clDEBUG1() << "Write thread going down";
+        LOG_IF_TRACE { clDEBUG1() << "Write thread going down"; }
     }
 
     void Write(const std::string& buffer) { m_outgoingQueue.Post(buffer); }
@@ -178,10 +178,14 @@ static wxString __JoinArray(const wxArrayString& args, size_t flags)
     if(flags & IProcessWrapInShell) {
         // CMD /C [command] ...
         // Make sure that the first command is wrapped with "" if it contains spaces
-        clDEBUG1() << "==> __JoinArray called for" << args << endl;
-        clDEBUG1() << "args[2] is:" << args[2] << endl;
+        LOG_IF_TRACE
+        {
+            clDEBUG1() << "==> __JoinArray called for" << args << endl;
+            clDEBUG1() << "args[2] is:" << args[2] << endl;
+        }
+
         if((args.size() > 3) && (!args[2].StartsWith("\"")) && (args[2].Contains(" "))) {
-            clDEBUG() << "==> Fixing" << args << endl;
+            LOG_IF_DEBUG { clDEBUG() << "==> Fixing" << args << endl; }
             wxArrayString tmparr = args;
             wxString& firstCommand = tmparr[2];
             firstCommand.Prepend("\"").Append("\"");
@@ -214,7 +218,7 @@ IProcess* WinProcessImpl::Execute(wxEvtHandler* parent, const wxArrayString& arg
                                   const wxString& workingDirectory, IProcessCallback* cb)
 {
     wxString cmd = __JoinArray(args, flags);
-    clDEBUG1() << "Windows process starting:" << cmd << endl;
+    LOG_IF_TRACE { clDEBUG1() << "Windows process starting:" << cmd << endl; }
     return Execute(parent, cmd, flags, workingDirectory, cb);
 }
 
@@ -364,8 +368,7 @@ IProcess* WinProcessImpl::Execute(wxEvtHandler* parent, const wxString& cmd, siz
         siStartInfo.wShowWindow = SW_HIDE;
         creationFlags = CREATE_NEW_CONSOLE | CREATE_NEW_PROCESS_GROUP;
     }
-    clDEBUG1() << "Running process:" << cmd << endl;
-
+    LOG_IF_TRACE { clDEBUG1() << "Running process:" << cmd << endl; }
     BOOL ret = CreateProcess(NULL,
                              cmd.wchar_str(),   // shell line execution command
                              NULL,              // process security attributes
@@ -432,12 +435,13 @@ WinProcessImpl::WinProcessImpl(wxEvtHandler* parent)
 
 WinProcessImpl::~WinProcessImpl() { Cleanup(); }
 
-bool WinProcessImpl::Read(wxString& buff, wxString& buffErr)
+bool WinProcessImpl::Read(wxString& buff, wxString& buffErr, std::string& raw_buff, std::string& raw_buff_err)
 {
-    DWORD le1(-1);
-    DWORD le2(-1);
-    buff.Clear();
-    buffErr.Clear();
+    DWORD le1 = wxNOT_FOUND;
+    DWORD le2 = wxNOT_FOUND;
+
+    buff.clear();
+    buffErr.clear();
 
     // Sanity
     if(!IsRedirect()) {
@@ -445,20 +449,29 @@ bool WinProcessImpl::Read(wxString& buff, wxString& buffErr)
     }
 
     // Read data from STDOUT and STDERR
-    if(!DoReadFromPipe(hChildStderrRdDup, ((m_flags & IProcessStderrEvent) ? buffErr : buff))) {
-        le2 = GetLastError();
+    if(m_flags & IProcessStderrEvent) {
+        // we want separate stderr events
+        if(!DoReadFromPipe(hChildStderrRdDup, buffErr, raw_buff_err)) {
+            le2 = GetLastError();
+        }
+    } else {
+        if(!DoReadFromPipe(hChildStderrRdDup, buff, raw_buff)) {
+            le2 = GetLastError();
+        }
     }
 
-    if(!DoReadFromPipe(hChildStdoutRdDup, buff)) {
+    // read stdout
+    if(!DoReadFromPipe(hChildStdoutRdDup, buff, raw_buff)) {
         le1 = GetLastError();
     }
+
     if((le1 == ERROR_NO_DATA) && (le2 == ERROR_NO_DATA)) {
         if(IsAlive()) {
             wxThread::Sleep(1);
             return true;
         }
     }
-    bool success = !buff.IsEmpty() || !buffErr.IsEmpty();
+    bool success = !buff.empty() || !buffErr.empty();
     if(!success) {
         DWORD dwExitCode;
         if(GetExitCodeProcess(piProcInfo.hProcess, &dwExitCode)) {
@@ -561,7 +574,7 @@ void WinProcessImpl::StartReaderThread()
     m_thr->Start();
 }
 
-bool WinProcessImpl::DoReadFromPipe(HANDLE pipe, wxString& buff)
+bool WinProcessImpl::DoReadFromPipe(HANDLE pipe, wxString& buff, std::string& raw_buff)
 {
     DWORD dwRead = 0;
     DWORD dwMode;
@@ -578,6 +591,8 @@ bool WinProcessImpl::DoReadFromPipe(HANDLE pipe, wxString& buff)
         if(bRes && (dwRead > 0)) {
             wxString tmpBuff;
             tmpBuff.reserve(dwRead * 2); // make enough room for the conversion
+            raw_buff.append(m_buffer, dwRead);
+
             // Success read
             tmpBuff = wxString(m_buffer, wxConvUTF8, dwRead);
             if(tmpBuff.IsEmpty() && dwRead > 0) {

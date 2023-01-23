@@ -52,11 +52,7 @@ namespace
 void SetNativeThemeMSW(wxWindow* win)
 {
 #ifdef __WXMSW__
-#if CL_BUILD
-    ::MSWSetWindowDarkTheme(win);
-#else
-    SetWindowTheme((HWND)win->GetHWND(), wxT("Explorer"), NULL);
-#endif
+    SetWindowTheme(win->GetHWND(), L"Explorer", nullptr);
 #endif
 }
 
@@ -192,11 +188,7 @@ void clTreeCtrl::OnPaint(wxPaintEvent& event)
 
 #ifdef __WXMSW__
     wxDC* dc_ptr = nullptr;
-    if(m_renderer == eRendererType::RENDERER_DIRECT2D) {
-        dc_ptr = new wxPaintDC(this);
-    } else {
-        dc_ptr = new wxAutoBufferedPaintDC(this);
-    }
+    dc_ptr = new wxBufferedPaintDC(this);
 
     DCLocker locker(dc_ptr);
     PrepareDC(*dc_ptr);
@@ -754,54 +746,74 @@ void clTreeCtrl::DoMouseScroll(const wxMouseEvent& event)
         return;
     }
 
-    const clRowEntry::Vec_t& onScreenItems = m_model.GetOnScreenItems();
-    if(onScreenItems.empty()) {
-        return;
-    }
-    clRowEntry* lastItem = onScreenItems.back();
-    clRowEntry* firstItem = onScreenItems.front();
+    // horizontal scrolling using trackpad?
+    bool trackpad_horiz_scrolling = event.GetWheelAxis() == wxMOUSE_WHEEL_HORIZONTAL;
 
-    // Can we scroll any further?
-    wxTreeItemId nextItem;
-    bool scrolling_down = !(event.GetWheelRotation() > 0);
-    if(scrolling_down) { // Scrolling up
-        nextItem = m_model.GetItemAfter(lastItem, true);
-    } else {
-        nextItem = m_model.GetItemAfter(firstItem, true);
+    // we also are checking of the scroll was done while on top of the horizontal scrollbar
+    wxPoint screenPos = wxGetMousePosition();
+    bool hscrolling = false;
+    if(GetHScrollBar() && GetHScrollBar()->IsShown()) {
+        wxRect hscroll = GetHScrollBar()->GetScreenRect();
+        hscrolling = hscroll.Contains(screenPos);
     }
 
-    if(!nextItem.IsOk() && (scrolling_down && !IsItemFullyVisible(lastItem))) {
-        nextItem = wxTreeItemId(lastItem);
-    } else if(!nextItem.IsOk()) {
-        // No more items to draw
-        m_scrollLines = 0;
-        return;
-    }
-
-    clRowEntry::Vec_t items;
-    m_scrollLines += event.GetWheelRotation();
-    int lines = m_scrollLines / event.GetWheelDelta();
-    int remainder = m_scrollLines % event.GetWheelDelta();
-
-    if(lines != 0) {
-        m_scrollLines = remainder;
-    } else {
-        return;
-    }
-    if(event.GetWheelRotation() > 0) { // Scrolling up
-        m_model.GetPrevItems(GetFirstItemOnScreen(), std::abs((double)lines), items, false);
-        if(items.empty()) {
-            return;
-        }
-        SetFirstItemOnScreen(items.front()); // first item
+    if(hscrolling || trackpad_horiz_scrolling) {
+        // horizontal
+        bool scrolling_left = !(event.GetWheelRotation() > 0);
+        // do 10 steps otherwise it seems very slow...
+        ScrollColumns(10, scrolling_left ? wxLEFT : wxRIGHT);
         UpdateScrollBar();
     } else {
-        m_model.GetNextItems(GetFirstItemOnScreen(), std::abs((double)lines), items, false);
-        if(items.empty()) {
+
+        const clRowEntry::Vec_t& onScreenItems = m_model.GetOnScreenItems();
+        if(onScreenItems.empty()) {
             return;
         }
-        SetFirstItemOnScreen(items.back()); // the last item
-        UpdateScrollBar();
+        clRowEntry* lastItem = onScreenItems.back();
+        clRowEntry* firstItem = onScreenItems.front();
+
+        // Can we scroll any further?
+        wxTreeItemId nextItem;
+        bool scrolling_down = !(event.GetWheelRotation() > 0);
+        if(scrolling_down) { // Scrolling up
+            nextItem = m_model.GetItemAfter(lastItem, true);
+        } else {
+            nextItem = m_model.GetItemAfter(firstItem, true);
+        }
+
+        if(!nextItem.IsOk() && (scrolling_down && !IsItemFullyVisible(lastItem))) {
+            nextItem = wxTreeItemId(lastItem);
+        } else if(!nextItem.IsOk()) {
+            // No more items to draw
+            m_scrollLines = 0;
+            return;
+        }
+
+        clRowEntry::Vec_t items;
+        m_scrollLines += event.GetWheelRotation();
+        int lines = m_scrollLines / event.GetWheelDelta();
+        int remainder = m_scrollLines % event.GetWheelDelta();
+
+        if(lines != 0) {
+            m_scrollLines = remainder;
+        } else {
+            return;
+        }
+        if(event.GetWheelRotation() > 0) { // Scrolling up
+            m_model.GetPrevItems(GetFirstItemOnScreen(), std::abs((double)lines), items, false);
+            if(items.empty()) {
+                return;
+            }
+            SetFirstItemOnScreen(items.front()); // first item
+            UpdateScrollBar();
+        } else {
+            m_model.GetNextItems(GetFirstItemOnScreen(), std::abs((double)lines), items, false);
+            if(items.empty()) {
+                return;
+            }
+            SetFirstItemOnScreen(items.back()); // the last item
+            UpdateScrollBar();
+        }
     }
     Refresh();
 }

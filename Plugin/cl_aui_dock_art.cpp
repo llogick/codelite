@@ -160,13 +160,13 @@ void clAuiDockArt::DrawPaneButton(wxDC& dc, wxWindow* window, int button, int bu
 void clAuiDockArt::DrawCaption(wxDC& dc, wxWindow* window, const wxString& text, const wxRect& rect,
                                wxAuiPaneInfo& pane)
 {
-    wxRect tmpRect;
-    window->PrepareDC(dc);
-
     if(!IsRectOK(dc, rect))
         return;
 
+    wxRect tmpRect;
 #if defined(__WXMAC__) || defined(__WXMSW__)
+    window->PrepareDC(dc);
+
     tmpRect = rect;
     tmpRect.Inflate(2);
 
@@ -295,10 +295,13 @@ void clAuiDockArt::DrawSash(wxDC& dc, wxWindow* window, int orientation, const w
 {
     wxUnusedVar(orientation);
     wxUnusedVar(window);
-
+#ifdef __WXMSW__
+    DrawingUtils::DrawStippleBackground(rect, dc);
+#else
     dc.SetPen(m_bgColour);
     dc.SetBrush(m_bgColour);
     dc.DrawRectangle(rect);
+#endif
 }
 
 void clAuiDockArt::OnSettingsChanged(clCommandEvent& event)
@@ -307,13 +310,13 @@ void clAuiDockArt::OnSettingsChanged(clCommandEvent& event)
     m_bgColour = clSystemSettings::GetDefaultPanelColour();
     if(DrawingUtils::IsDark(m_bgColour)) {
         m_captionTextColour = wxColour(*wxWHITE).ChangeLightness(80);
-        m_captionColour = m_bgColour.ChangeLightness(50);
-        m_penColour = m_bgColour.ChangeLightness(50);
     } else {
         m_captionTextColour = wxColour(*wxBLACK).ChangeLightness(120);
-        m_captionColour = wxColour("#9CC0E7"); // Pale Cerulean
-        m_penColour = m_bgColour;
     }
+
+    m_captionColour = clSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHT);
+    m_captionTextColour = clSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHTTEXT);
+    m_penColour = clSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHTTEXT);
 
     // trigger a refresh
     clGetManager()->GetDockingManager()->Update();

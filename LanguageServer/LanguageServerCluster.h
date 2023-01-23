@@ -1,10 +1,11 @@
 #ifndef LANGUAGESERVERCLUSTER_H
 #define LANGUAGESERVERCLUSTER_H
 
+#include "CodeLiteRemoteHelper.hpp"
 #include "LSP/LSPEvent.h"
+#include "LSP/LanguageServerProtocol.h"
 #include "LSP/basic_types.h"
 #include "LanguageServerEntry.h"
-#include "LanguageServerProtocol.h"
 #include "clWorkspaceEvent.hpp"
 #include "cl_command_event.h"
 #include "entry.h"
@@ -29,15 +30,16 @@ class LanguageServerCluster : public wxEvtHandler
     std::unordered_map<wxString, std::vector<LSP::SymbolInformation>> m_symbols_to_file_cache;
     LanguageServerPlugin* m_plugin = nullptr;
     LSPOutlineViewDlg* m_quick_outline_dlg = nullptr;
+    std::unique_ptr<CodeLiteRemoteHelper> m_remoteHelper;
 
 public:
     typedef wxSharedPtr<LanguageServerCluster> Ptr_t;
 
 public:
     void StartServer(const LanguageServerEntry& entry);
-
-    void RestartServer(const wxString& name);
     void StartServer(const wxString& entry);
+    void RestartServer(const wxString& name);
+
     void StopServer(const wxString& entry);
     void DeleteServer(const wxString& name);
 
@@ -75,6 +77,8 @@ protected:
     void OnOpenResource(wxCommandEvent& event);
     void OnEditorClosed(clCommandEvent& event);
     void OnActiveEditorChanged(wxCommandEvent& event);
+    void OnWorkspaceScanCompleted(clWorkspaceEvent& event);
+
     wxString GetEditorFilePath(IEditor* editor) const;
     /**
      * @brief find an editor either by local or remote path

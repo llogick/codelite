@@ -23,34 +23,28 @@ clFileSystemWorkspaceView::clFileSystemWorkspaceView(wxWindow* parent, const wxS
 
     clBitmapList* images = GetToolBar()->GetBitmaps();
     GetToolBar()->AddTool(wxID_PREFERENCES, _("Settings"), images->Add("cog"), "", wxITEM_NORMAL);
-    GetToolBar()->AddTool(XRCID("fsw_refresh_current_folder"), _("Refresh"), images->Add("file_reload"), "",
-                          wxITEM_NORMAL);
+    GetToolBar()->AddTool(XRCID("fsw_refresh_view"), _("Refresh View"), images->Add("file_reload"), "", wxITEM_NORMAL);
 
     GetToolBar()->Bind(wxEVT_TOOL, &clFileSystemWorkspaceView::OnSettings, this, wxID_PREFERENCES);
     GetToolBar()->AddSeparator();
 
-    GetToolBar()->Add2StatesTool(XRCID("ID_BUILD_BUTTON"), EventNotifier::Get()->TopFrame()->GetEventHandler(),
-                                 { XRCID("build_active_project"), _("Build Active Project"), images->Add("build") },
-                                 { XRCID("stop_active_project_build"), _("Stop Current Build"), images->Add("stop") },
-                                 wxITEM_DROPDOWN);
+    GetToolBar()->AddTool(XRCID("build_active_project"), _("Build active project"), images->Add("build"), wxEmptyString,
+                          wxITEM_DROPDOWN);
+    GetToolBar()->Bind(wxEVT_TOOL_DROPDOWN, &clFileSystemWorkspaceView::OnBuildActiveProjectDropdown, this,
+                       XRCID("build_active_project"));
 
-    GetToolBar()->Add2StatesTool(XRCID("ID_RUN_BUTTON"), EventNotifier::Get()->TopFrame()->GetEventHandler(),
-                                 { XRCID("execute_no_debug"), _("Run program"), images->Add("execute") },
-                                 { XRCID("stop_executed_program"), _("Stop running program"), images->Add("stop") },
-                                 wxITEM_NORMAL);
+    GetToolBar()->AddTool(XRCID("stop_active_project_build"), _("Stop current build"), images->Add("stop"),
+                          wxEmptyString, wxITEM_NORMAL);
 
     // these events are connected using the App object (to support keyboard shortcuts)
-    wxTheApp->Bind(wxEVT_TOOL, &clFileSystemWorkspaceView::OnRefresh, this, XRCID("fsw_refresh_current_folder"));
-    wxTheApp->Bind(wxEVT_UPDATE_UI, &clFileSystemWorkspaceView::OnRefreshUI, this, XRCID("fsw_refresh_current_folder"));
+    wxTheApp->Bind(wxEVT_TOOL, &clFileSystemWorkspaceView::OnRefreshView, this, XRCID("fsw_refresh_view"));
+    wxTheApp->Bind(wxEVT_UPDATE_UI, &clFileSystemWorkspaceView::OnRefreshViewUI, this, XRCID("fsw_refresh_view"));
 
     GetToolBar()->Realize();
 
-    m_buttonConfigs = new clThemedButton(this, wxID_ANY, wxEmptyString);
-    m_buttonConfigs->SetHasDropDownMenu(true);
-    m_buttonConfigs->Bind(wxEVT_BUTTON, &clFileSystemWorkspaceView::OnShowConfigsMenu, this);
-    GetToolBar()->Bind(wxEVT_TOOL_DROPDOWN, &clFileSystemWorkspaceView::OnBuildActiveProjectDropdown, this,
-                       XRCID("ID_BUILD_BUTTON"));
-    GetSizer()->Insert(0, m_buttonConfigs, 0, wxEXPAND | wxALL, 5);
+    m_choiceConfigs = new wxChoice(this, wxID_ANY);
+    m_choiceConfigs->Bind(wxEVT_CHOICE, &clFileSystemWorkspaceView::OnChoiceConfigSelected, this);
+    GetSizer()->Insert(0, m_choiceConfigs, 0, wxEXPAND | wxALL, 5);
 
     // Hide hidden folders and files
     m_options &= ~kShowHiddenFiles;
@@ -74,9 +68,9 @@ clFileSystemWorkspaceView::~clFileSystemWorkspaceView()
     EventNotifier::Get()->Unbind(wxEVT_BUILD_ENDED, &clFileSystemWorkspaceView::OnBuildEnded, this);
     EventNotifier::Get()->Unbind(wxEVT_PROGRAM_STARTED, &clFileSystemWorkspaceView::OnProgramStarted, this);
     EventNotifier::Get()->Unbind(wxEVT_PROGRAM_TERMINATED, &clFileSystemWorkspaceView::OnProgramStopped, this);
-    m_buttonConfigs->Unbind(wxEVT_BUTTON, &clFileSystemWorkspaceView::OnShowConfigsMenu, this);
+    m_choiceConfigs->Unbind(wxEVT_CHOICE, &clFileSystemWorkspaceView::OnChoiceConfigSelected, this);
     GetToolBar()->Unbind(wxEVT_TOOL_DROPDOWN, &clFileSystemWorkspaceView::OnBuildActiveProjectDropdown, this,
-                         XRCID("ID_BUILD_BUTTON"));
+                         XRCID("build_active_project"));
     EventNotifier::Get()->Unbind(wxEVT_FINDINFILES_DLG_DISMISSED, &clFileSystemWorkspaceView::OnFindInFilesDismissed,
                                  this);
     EventNotifier::Get()->Unbind(wxEVT_FINDINFILES_DLG_SHOWING, &clFileSystemWorkspaceView::OnFindInFilesShowing, this);
@@ -150,30 +144,28 @@ void clFileSystemWorkspaceView::OnSettings(wxCommandEvent& event)
 void clFileSystemWorkspaceView::UpdateConfigs(const wxArrayString& configs, const wxString& selectedConfig)
 {
     m_configs = configs;
-    m_buttonConfigs->SetText(selectedConfig);
+    m_choiceConfigs->Set(configs);
+    m_choiceConfigs->SetStringSelection(selectedConfig);
 }
 
-void clFileSystemWorkspaceView::OnShowConfigsMenu(wxCommandEvent& event)
+void clFileSystemWorkspaceView::OnChoiceConfigSelected(wxCommandEvent& event)
 {
-    wxMenu menu;
-    for(const wxString& config : m_configs) {
-        int menuItemid = wxXmlResource::GetXRCID(config);
-        menu.Append(menuItemid, config, config, wxITEM_NORMAL);
-        menu.Bind(
-            wxEVT_MENU,
-            [=](wxCommandEvent& menuEvent) {
-                m_buttonConfigs->SetText(config);
-                clFileSystemWorkspace::Get().GetSettings().SetSelectedConfig(config);
-                clFileSystemWorkspace::Get().Save(true);
-            },
-            menuItemid);
+    int sel = event.GetSelection();
+    if(sel == wxNOT_FOUND) {
+        return;
     }
-    m_buttonConfigs->ShowMenu(menu);
+
+    m_choiceConfigs->SetSelection(sel);
+    clFileSystemWorkspace::Get().GetSettings().SetSelectedConfig(m_choiceConfigs->GetStringSelection());
+    clFileSystemWorkspace::Get().Save(true);
 }
 
-void clFileSystemWorkspaceView::OnRefresh(wxCommandEvent& event)
+void clFileSystemWorkspaceView::OnRefreshView(wxCommandEvent& event)
 {
-    clTreeCtrlPanel::OnRefresh(event);
+    wxUnusedVar(event);
+    // refresh the entire view
+    clTreeCtrlPanel::RefreshTree();
+    // notify update
     clFileSystemWorkspace::Get().FileSystemUpdated();
 }
 
@@ -181,43 +173,37 @@ void clFileSystemWorkspaceView::OnBuildStarted(clBuildEvent& event)
 {
     event.Skip();
     m_buildInProgress = true;
-    clDEBUG() << "Build started";
-    m_toolbar->SetButtonAction(XRCID("ID_BUILD_BUTTON"), XRCID("stop_active_project_build"));
 }
 
 void clFileSystemWorkspaceView::OnBuildEnded(clBuildEvent& event)
 {
     event.Skip();
     m_buildInProgress = false;
-    clDEBUG() << "Build ended";
-    m_toolbar->SetButtonAction(XRCID("ID_BUILD_BUTTON"), XRCID("build_active_project"));
 }
 
 void clFileSystemWorkspaceView::OnProgramStarted(clExecuteEvent& event)
 {
     event.Skip();
     m_runInProgress = true;
-    clDEBUG() << "Run started";
-    m_toolbar->SetButtonAction(XRCID("ID_RUN_BUTTON"), XRCID("stop_executed_program"));
 }
 
 void clFileSystemWorkspaceView::OnProgramStopped(clExecuteEvent& event)
 {
     event.Skip();
     m_runInProgress = false;
-    clDEBUG() << "Run ended";
-    m_toolbar->SetButtonAction(XRCID("ID_RUN_BUTTON"), XRCID("execute_no_debug"));
 }
 
 void clFileSystemWorkspaceView::OnBuildActiveProjectDropdown(wxCommandEvent& event)
 {
     clDEBUG() << "OnBuildActiveProjectDropdown called";
+
+    // dont display default menu
     wxUnusedVar(event);
     // we dont allow showing the dropdown during build process
     if(m_buildInProgress) {
         return;
     }
-    clGetManager()->ShowBuildMenu(m_toolbar, XRCID("ID_BUILD_BUTTON"));
+    clGetManager()->ShowBuildMenu(m_toolbar, XRCID("build_active_project"));
 }
 
 void clFileSystemWorkspaceView::OnFindInFilesDismissed(clFindInFilesEvent& event)
@@ -306,7 +292,7 @@ void clFileSystemWorkspaceView::OnExcludePath(wxCommandEvent& event)
         for(wxString folder : m_selectedFolders) {
             // Make it relative to the workspace
             wxFileName fn(folder, "dummy");
-            fn.MakeRelativeTo(clFileSystemWorkspace::Get().GetFileName().GetPath());
+            fn.MakeRelativeTo(clFileSystemWorkspace::Get().GetDir());
             folder = fn.GetPath();
             if(S.count(folder) == 0) {
                 S.insert(folder);
@@ -325,7 +311,7 @@ void clFileSystemWorkspaceView::OnThemeChanged(clCommandEvent& event)
     Refresh();
 }
 
-void clFileSystemWorkspaceView::OnRefreshUI(wxUpdateUIEvent& event)
+void clFileSystemWorkspaceView::OnRefreshViewUI(wxUpdateUIEvent& event)
 {
     event.Enable(clFileSystemWorkspace::Get().IsOpen());
 }

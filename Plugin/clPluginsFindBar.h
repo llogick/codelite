@@ -27,13 +27,13 @@
 
 #include "clEditorEditEventsHandler.h"
 #include "clTerminalHistory.h"
+#include "clToolBar.h"
 #include "quickfindbarbase.h"
 
 #include <codelite_exports.h>
 #include <wx/combobox.h>
 #include <wx/panel.h>
 
-class clToolBar;
 class wxStyledTextCtrl;
 
 class WXDLLIMPEXP_SDK clPluginsFindBar : public QuickFindBarBase
@@ -161,6 +161,7 @@ public:
 
     wxString GetFindWhat() const { return m_textCtrlFind->GetValue(); }
     void SetFindWhat(const wxString& findwhat) { m_textCtrlFind->ChangeValue(findwhat); }
+    virtual bool HasFocus() const;
 };
 
 #endif // __quickfindbar__

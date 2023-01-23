@@ -9,7 +9,19 @@
 // Declare the bitmap loading function
 extern void wxCrafterCbL3wsInitBitmapResources();
 
-static bool bBitmapLoaded = false;
+namespace
+{
+// return the wxBORDER_SIMPLE that matches the current application theme
+wxBorder get_border_simple_theme_aware_bit()
+{
+#if wxVERSION_NUMBER >= 3300 && defined(__WXMSW__)
+    return wxSystemSettings::GetAppearance().IsDark() ? wxBORDER_SIMPLE : wxBORDER_STATIC;
+#else
+    return wxBORDER_DEFAULT;
+#endif
+} // DoGetBorderSimpleBit
+bool bBitmapLoaded = false;
+} // namespace
 
 LanguageServerSettingsDlgBase::LanguageServerSettingsDlgBase(wxWindow* parent, wxWindowID id, const wxString& title,
                                                              const wxPoint& pos, const wxSize& size, long style)
@@ -103,6 +115,7 @@ LanguageServerSettingsDlgBase::LanguageServerSettingsDlgBase(wxWindow* parent, w
     m_buttonDelete->Bind(wxEVT_COMMAND_BUTTON_CLICKED, &LanguageServerSettingsDlgBase::OnDeleteLSP, this);
     m_buttonDelete->Bind(wxEVT_UPDATE_UI, &LanguageServerSettingsDlgBase::OnDeleteLSPUI, this);
     m_button6->Bind(wxEVT_UPDATE_UI, &LanguageServerSettingsDlgBase::OnOKUI, this);
+    m_button6->Bind(wxEVT_COMMAND_BUTTON_CLICKED, &LanguageServerSettingsDlgBase::OnButtonOK, this);
 }
 
 LanguageServerSettingsDlgBase::~LanguageServerSettingsDlgBase()
@@ -112,6 +125,7 @@ LanguageServerSettingsDlgBase::~LanguageServerSettingsDlgBase()
     m_buttonDelete->Unbind(wxEVT_COMMAND_BUTTON_CLICKED, &LanguageServerSettingsDlgBase::OnDeleteLSP, this);
     m_buttonDelete->Unbind(wxEVT_UPDATE_UI, &LanguageServerSettingsDlgBase::OnDeleteLSPUI, this);
     m_button6->Unbind(wxEVT_UPDATE_UI, &LanguageServerSettingsDlgBase::OnOKUI, this);
+    m_button6->Unbind(wxEVT_COMMAND_BUTTON_CLICKED, &LanguageServerSettingsDlgBase::OnButtonOK, this);
 }
 
 LanguageServerPageBase::LanguageServerPageBase(wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize& size,
@@ -132,7 +146,7 @@ LanguageServerPageBase::LanguageServerPageBase(wxWindow* parent, wxWindowID id, 
     flexGridSizer432->SetFlexibleDirection(wxBOTH);
     flexGridSizer432->SetNonFlexibleGrowMode(wxFLEX_GROWMODE_SPECIFIED);
     flexGridSizer432->AddGrowableCol(1);
-    flexGridSizer432->AddGrowableRow(3);
+    flexGridSizer432->AddGrowableRow(2);
 
     boxSizer31->Add(flexGridSizer432, 1, wxALL | wxEXPAND, WXC_FROM_DIP(5));
 
@@ -158,48 +172,30 @@ LanguageServerPageBase::LanguageServerPageBase(wxWindow* parent, wxWindowID id, 
 
     flexGridSizer432->Add(m_textCtrlName, 0, wxALL | wxEXPAND | wxALIGN_CENTER_VERTICAL, WXC_FROM_DIP(5));
 
-    flexGridSizer432->Add(0, 0, 1, wxALL, WXC_FROM_DIP(5));
-
-    wxBoxSizer* boxSizer184 = new wxBoxSizer(wxHORIZONTAL);
-
-    flexGridSizer432->Add(boxSizer184, 0, wxEXPAND, WXC_FROM_DIP(5));
-
-    m_checkBoxRemoteServer =
-        new wxCheckBox(this, wxID_ANY, _("Remote Server"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), 0);
-    m_checkBoxRemoteServer->SetValue(false);
-
-    boxSizer184->Add(m_checkBoxRemoteServer, 0, wxALL | wxALIGN_CENTER_VERTICAL, WXC_FROM_DIP(5));
-
-    wxArrayString m_choiceSSHAccountsArr;
-    m_choiceSSHAccounts =
-        new wxChoice(this, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), m_choiceSSHAccountsArr, 0);
-
-    boxSizer184->Add(m_choiceSSHAccounts, 1, wxALL, WXC_FROM_DIP(5));
-
     m_staticText495 =
-        new wxStaticText(this, wxID_ANY, _("Options:"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), 0);
+        new wxStaticText(this, wxID_ANY, _("Command:"), wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), 0);
     m_staticText495->SetToolTip(_("The language server executable"));
 
     flexGridSizer432->Add(m_staticText495, 0, wxALL | wxALIGN_RIGHT | wxALIGN_TOP, WXC_FROM_DIP(5));
 
-    wxBoxSizer* boxSizer162 = new wxBoxSizer(wxVERTICAL);
+    wxBoxSizer* boxSizer200 = new wxBoxSizer(wxVERTICAL);
 
-    flexGridSizer432->Add(boxSizer162, 1, wxALL | wxEXPAND, WXC_FROM_DIP(5));
+    flexGridSizer432->Add(boxSizer200, 1, wxALL | wxEXPAND, WXC_FROM_DIP(5));
 
-    m_notebook164 = new wxNotebook(this, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), wxBK_DEFAULT);
-    m_notebook164->SetName(wxT("m_notebook164"));
+    m_notebook201 = new wxNotebook(this, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), wxBK_DEFAULT);
+    m_notebook201->SetName(wxT("m_notebook201"));
 
-    boxSizer162->Add(m_notebook164, 1, wxEXPAND, WXC_FROM_DIP(5));
+    boxSizer200->Add(m_notebook201, 1, wxALL | wxEXPAND, WXC_FROM_DIP(5));
 
-    m_panelCommand = new wxPanel(m_notebook164, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_notebook164, wxSize(-1, -1)),
-                                 wxTAB_TRAVERSAL);
-    m_notebook164->AddPage(m_panelCommand, _("Command"), true);
+    m_panel202 = new wxPanel(m_notebook201, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_notebook201, wxSize(-1, -1)),
+                             wxTAB_TRAVERSAL);
+    m_notebook201->AddPage(m_panel202, _("Command"), true);
 
-    wxBoxSizer* boxSizer168 = new wxBoxSizer(wxVERTICAL);
-    m_panelCommand->SetSizer(boxSizer168);
+    wxBoxSizer* boxSizer204 = new wxBoxSizer(wxVERTICAL);
+    m_panel202->SetSizer(boxSizer204);
 
-    m_stcCommand = new wxStyledTextCtrl(m_panelCommand, wxID_ANY, wxDefaultPosition,
-                                        wxDLG_UNIT(m_panelCommand, wxSize(-1, 40)), wxBORDER_NONE);
+    m_stcCommand = new clThemedSTC(m_panel202, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_panel202, wxSize(-1, 40)),
+                                   get_border_simple_theme_aware_bit());
     // Configure the fold margin
     m_stcCommand->SetMarginType(4, wxSTC_MARGIN_SYMBOL);
     m_stcCommand->SetMarginMask(4, wxSTC_MASK_FOLDERS);
@@ -235,63 +231,17 @@ LanguageServerPageBase::LanguageServerPageBase(wxWindow* parent, wxWindowID id, 
     m_stcCommand->SetKeyWords(3, wxT(""));
     m_stcCommand->SetKeyWords(4, wxT(""));
 
-    boxSizer168->Add(m_stcCommand, 1, wxEXPAND, WXC_FROM_DIP(5));
+    boxSizer204->Add(m_stcCommand, 1, wxEXPAND, WXC_FROM_DIP(5));
 
-    m_panelEnvironment = new wxPanel(m_notebook164, wxID_ANY, wxDefaultPosition,
-                                     wxDLG_UNIT(m_notebook164, wxSize(-1, -1)), wxTAB_TRAVERSAL);
-    m_notebook164->AddPage(m_panelEnvironment, _("Environment"), false);
+    m_panel203 = new wxPanel(m_notebook201, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_notebook201, wxSize(-1, -1)),
+                             wxTAB_TRAVERSAL);
+    m_notebook201->AddPage(m_panel203, _("initializationOptions"), false);
 
-    wxBoxSizer* boxSizer178 = new wxBoxSizer(wxVERTICAL);
-    m_panelEnvironment->SetSizer(boxSizer178);
+    wxBoxSizer* boxSizer205 = new wxBoxSizer(wxVERTICAL);
+    m_panel203->SetSizer(boxSizer205);
 
-    m_stcEnvironment = new wxStyledTextCtrl(m_panelEnvironment, wxID_ANY, wxDefaultPosition,
-                                            wxDLG_UNIT(m_panelEnvironment, wxSize(-1, -1)), wxBORDER_NONE);
-    // Configure the fold margin
-    m_stcEnvironment->SetMarginType(4, wxSTC_MARGIN_SYMBOL);
-    m_stcEnvironment->SetMarginMask(4, wxSTC_MASK_FOLDERS);
-    m_stcEnvironment->SetMarginSensitive(4, true);
-    m_stcEnvironment->SetMarginWidth(4, 0);
-
-    // Configure the tracker margin
-    m_stcEnvironment->SetMarginWidth(1, 0);
-
-    // Configure the symbol margin
-    m_stcEnvironment->SetMarginType(2, wxSTC_MARGIN_SYMBOL);
-    m_stcEnvironment->SetMarginMask(2, ~(wxSTC_MASK_FOLDERS));
-    m_stcEnvironment->SetMarginWidth(2, 0);
-    m_stcEnvironment->SetMarginSensitive(2, true);
-
-    // Configure the line numbers margin
-    m_stcEnvironment->SetMarginType(0, wxSTC_MARGIN_NUMBER);
-    m_stcEnvironment->SetMarginWidth(0, 0);
-
-    // Configure the line symbol margin
-    m_stcEnvironment->SetMarginType(3, wxSTC_MARGIN_FORE);
-    m_stcEnvironment->SetMarginMask(3, 0);
-    m_stcEnvironment->SetMarginWidth(3, 0);
-    // Select the lexer
-    m_stcEnvironment->SetLexer(wxSTC_LEX_NULL);
-    // Set default font / styles
-    m_stcEnvironment->StyleClearAll();
-    m_stcEnvironment->SetWrapMode(0);
-    m_stcEnvironment->SetIndentationGuides(0);
-    m_stcEnvironment->SetKeyWords(0, wxT(""));
-    m_stcEnvironment->SetKeyWords(1, wxT(""));
-    m_stcEnvironment->SetKeyWords(2, wxT(""));
-    m_stcEnvironment->SetKeyWords(3, wxT(""));
-    m_stcEnvironment->SetKeyWords(4, wxT(""));
-
-    boxSizer178->Add(m_stcEnvironment, 1, wxEXPAND, WXC_FROM_DIP(5));
-
-    m_panelInitOptions = new wxPanel(m_notebook164, wxID_ANY, wxDefaultPosition,
-                                     wxDLG_UNIT(m_notebook164, wxSize(-1, -1)), wxTAB_TRAVERSAL);
-    m_notebook164->AddPage(m_panelInitOptions, _("Initialization Options"), false);
-
-    wxBoxSizer* boxSizer1682 = new wxBoxSizer(wxVERTICAL);
-    m_panelInitOptions->SetSizer(boxSizer1682);
-
-    m_stcInitOptions = new wxStyledTextCtrl(m_panelInitOptions, wxID_ANY, wxDefaultPosition,
-                                            wxDLG_UNIT(m_panelInitOptions, wxSize(-1, 40)), wxBORDER_NONE);
+    m_stcInitOptions = new clThemedSTC(m_panel203, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_panel203, wxSize(-1, -1)),
+                                       get_border_simple_theme_aware_bit());
     // Configure the fold margin
     m_stcInitOptions->SetMarginType(4, wxSTC_MARGIN_SYMBOL);
     m_stcInitOptions->SetMarginMask(4, wxSTC_MASK_FOLDERS);
@@ -327,7 +277,7 @@ LanguageServerPageBase::LanguageServerPageBase(wxWindow* parent, wxWindowID id, 
     m_stcInitOptions->SetKeyWords(3, wxT(""));
     m_stcInitOptions->SetKeyWords(4, wxT(""));
 
-    boxSizer1682->Add(m_stcInitOptions, 1, wxEXPAND, WXC_FROM_DIP(5));
+    boxSizer205->Add(m_stcInitOptions, 1, wxEXPAND, WXC_FROM_DIP(5));
 
     m_staticText579 = new wxStaticText(this, wxID_ANY, _("Working directory:"), wxDefaultPosition,
                                        wxDLG_UNIT(this, wxSize(-1, -1)), 0);
@@ -425,7 +375,6 @@ LanguageServerPageBase::LanguageServerPageBase(wxWindow* parent, wxWindowID id, 
         GetSizer()->Fit(this);
     }
     // Connect events
-    m_choiceSSHAccounts->Bind(wxEVT_UPDATE_UI, &LanguageServerPageBase::OnRemoteServerUI, this);
     m_stcCommand->Bind(wxEVT_UPDATE_UI, &LanguageServerPageBase::OnCommandUI, this);
     m_button1153->Bind(wxEVT_COMMAND_BUTTON_CLICKED, &LanguageServerPageBase::OnBrowseWD, this);
     m_button115->Bind(wxEVT_COMMAND_BUTTON_CLICKED, &LanguageServerPageBase::OnSuggestLanguages, this);
@@ -433,7 +382,6 @@ LanguageServerPageBase::LanguageServerPageBase(wxWindow* parent, wxWindowID id, 
 
 LanguageServerPageBase::~LanguageServerPageBase()
 {
-    m_choiceSSHAccounts->Unbind(wxEVT_UPDATE_UI, &LanguageServerPageBase::OnRemoteServerUI, this);
     m_stcCommand->Unbind(wxEVT_UPDATE_UI, &LanguageServerPageBase::OnCommandUI, this);
     m_button1153->Unbind(wxEVT_COMMAND_BUTTON_CLICKED, &LanguageServerPageBase::OnBrowseWD, this);
     m_button115->Unbind(wxEVT_COMMAND_BUTTON_CLICKED, &LanguageServerPageBase::OnSuggestLanguages, this);

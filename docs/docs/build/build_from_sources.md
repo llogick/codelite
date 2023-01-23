@@ -3,23 +3,54 @@
 ## Windows
 ----
 
-- Install compiler and other required tools (`git` etc) [as described here][10]
-- Build wxWidgets from sources. See build instructions [here][5]
-- Clone CodeLite sources:
+!!! Important
+    We only support `MSYS2` terminal
+
+- [Prepare your working environment][10]
+- [Build wxWidgets from sources][5]
+- Open `MSYS` terminal, and type:
+
+```bash
+pacman -S mingw-w64-clang-x86_64-zlib       \
+          mingw-w64-clang-x86_64-libssh     \
+          mingw-w64-clang-x86_64-hunspell   \
+          mingw-w64-clang-x86_64-openssl    \
+          mingw-w64-clang-x86_64-sqlite3
+```
+
+- Download and build `wx-config.exe` from sources:
+
+```bash
+git clone https://github.com/eranif/wx-config-msys2.git
+cd wx-config-msys2
+mkdir build-release
+cd $_
+cmake .. -DCMAKE_BUILD_TYPE=Release -G"MinGW Makefiles"
+mingw32-make -j$(nproc) install
+```
+
+- Build CodeLite (in `Release` mode):
 
 ```bash
 git clone https://github.com/eranif/codelite.git
 cd codelite
 git submodule update --init
+mkdir build-release
+cd $_
+cmake .. -DCMAKE_BUILD_TYPE=Release -G"MinGW Makefiles" -DWXWIN=$HOME/root
+mingw32-make -j$(nproc) install
 ```
 
-- Download and install CodeLite for Windows (`64 bit`) from our [Download Page][8]
-- Open the workspace `CodeLiteIDE.workspace` (located in the CodeLite's folder)
-- Make sure that the project `CodeLiteIDE` is selected (the active project uses **bold** font)
-- Select the `Win_x64_Release` build configuration and click ++f7++
-- When the compilation is over, close the workspace
-- Close CodeLite
-- To update your installation with the new CodeLite, close CodeLite and from a `cmd.exe` window (opened as Administrator), navigate to `codelite-sources/Runtime/` and run the file `update64.bat`
+!!! Note
+    To build CodeLite in debug mode, replace `CMake` argument from:
+    `-DCMAKE_BUILD_TYPE=Release` into `-DCMAKE_BUILD_TYPE=Debug`
+
+- To run the new CodeLite:
+
+```bash
+cd build-release/install
+./codelite
+```
 
 ## Linux
 ----
@@ -51,6 +82,13 @@ git submodule update --init
  cmake -DCMAKE_BUILD_TYPE=Release .. -DCOPY_WX_LIBS=1
  make -j$(nproc)
  sudo make install
+```
+
+- To uninstall CodeLite:
+
+```bash
+cd build-release # cd to the build directory
+sudo xargs rm -vf < install_manifest.txt
 ```
 
 ----------
@@ -97,14 +135,14 @@ source $HOME/.$(basename $SHELL)rc
 
  - Next step is to [Build wxWidgets from sources][9]
  - Finally, Build CodeLite:
- 
+
 ```bash
     mkdir -p $HOME/src
     cd $HOME/src
     git clone https://github.com/eranif/codelite.git
     cd codelite
     git submodule update --init
-    
+
     # build CodeLite release configuration
     mkdir build-release
     cd build-release
@@ -129,4 +167,4 @@ To launch CodeLite:
  [6]: /build/build_wx_widgets/#linux
  [8]: https://codelite.org/support.php
  [9]: /build/build_wx_widgets/#macos
- [10]: /build/mingw_builds/#prepare-a-working-environment
+ [10]: /getting_started/windows/

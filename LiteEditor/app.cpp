@@ -31,6 +31,7 @@
 #include "SocketAPI/clSocketClient.h"
 #include "asyncprocess.h" // IProcess
 #include "autoversion.h"
+#include "clDTL.h"
 #include "clKeyboardManager.h"
 #include "clSystemSettings.h"
 #include "cl_config.h"
@@ -45,6 +46,7 @@
 #include "file_logger.h"
 #include "fileexplorer.h"
 #include "fileextmanager.h"
+#include "fileutils.h"
 #include "frame.h"
 #include "globals.h"
 #include "macros.h"
@@ -57,12 +59,11 @@
 #include "wx_xml_compatibility.h"
 #include "xmlutils.h"
 
-#include <CompilerLocatorMinGW.h>
 #include <wx/imagjpeg.h>
 #include <wx/persist.h>
 #include <wx/regex.h>
 
-//#define __PERFORMANCE
+// #define __PERFORMANCE
 #include "performance.h"
 
 //////////////////////////////////////////////
@@ -235,9 +236,11 @@ static void WaitForDebugger(int signo)
 
 IMPLEMENT_APP(CodeLiteApp)
 
-// BEGIN_EVENT_TABLE(CodeLiteApp, wxApp)
-//    EVT_ACTIVATE_APP(CodeLiteApp::OnAppAcitvated)
-// END_EVENT_TABLE()
+#ifdef __WXMAC__
+#define MENU_XRC "menu.macos.xrc"
+#else
+#define MENU_XRC "menu.xrc"
+#endif
 
 extern void InitXmlResource();
 CodeLiteApp::CodeLiteApp(void)
@@ -333,7 +336,15 @@ bool CodeLiteApp::OnInit()
     }
     wxString newDataDir(wxEmptyString);
     if(m_parser.Found(wxT("d"), &newDataDir)) {
-        clStandardPaths::Get().SetUserDataDir(newDataDir);
+        // ensure that the data dir exists
+        wxFileName dd(newDataDir, wxEmptyString);
+        if(dd.IsRelative()) {
+            dd.MakeAbsolute();
+        }
+        if(!dd.DirExists()) {
+            dd.Mkdir(wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
+        }
+        clStandardPaths::Get().SetUserDataDir(dd.GetFullPath());
     }
 
     // Init resources and add the PNG handler
@@ -346,6 +357,15 @@ bool CodeLiteApp::OnInit()
     wxImage::AddHandler(new wxXPMHandler);
     wxImage::AddHandler(new wxGIFHandler);
     wxImage::AddHandler(new wxJPEGHandler);
+
+#if defined(__WXMSW__)
+    if(clConfig::Get().Read("CodeLiteAppearance", 0) == 1) {
+        // force dark
+        MSWEnableDarkMode(wxApp::DarkMode_Always);
+    } else {
+        MSWEnableDarkMode(wxApp::DarkMode_Auto);
+    }
+#endif
 
     bool show_splash = clConfig::Get().Read("ShowSplashScreen", true);
     if(show_splash) {
@@ -413,14 +433,19 @@ bool CodeLiteApp::OnInit()
         SetPluginLoadPolicy(PP_FromList);
     }
 
-    wxString newBaseDir(wxEmptyString);
-    if(m_parser.Found(wxT("b"), &newBaseDir)) {
 #if defined(__WXMSW__)
-        homeDir = newBaseDir;
-#else
-        wxLogDebug("Ignoring the Windows-only --basedir option as not running Windows");
-#endif
+    wxString newBaseDir;
+    if(m_parser.Found(wxT("b"), &newBaseDir)) {
+        wxFileName bd(newBaseDir, wxEmptyString);
+        if(bd.IsRelative()) {
+            bd.MakeAbsolute();
+        }
+        homeDir = bd.GetPath();
+    } else {
+        homeDir = wxFileName(wxStandardPaths::Get().GetExecutablePath()).GetPath();
     }
+    clStandardPaths::Get().SetDataDir(homeDir);
+#endif
 
     // Set the global log file verbosity. NB Doing this earlier seems to break wxGTK debug output when debugging
     // CodeLite itself :/
@@ -512,7 +537,7 @@ bool CodeLiteApp::OnInit()
     //    clStandardPaths::Get().SetDataDir(fnHomdDir.GetPath());
 
     // try to locate the menu/rc.xrc file
-    wxFileName fn(homeDir + wxT("/rc"), wxT("menu.xrc"));
+    wxFileName fn(homeDir + wxT("/rc"), MENU_XRC);
     if(!fn.FileExists()) {
         // we got wrong home directory
         wxFileName appFn(wxAppBase::argv[0]);
@@ -620,7 +645,11 @@ bool CodeLiteApp::OnInit()
         // versions
         wxString preferredLocalename = EditorConfigST::Get()->GetOptions()->GetPreferredLocale();
         if(!preferredLocalename.IsEmpty()) {
-            const wxLanguageInfo* info = wxLocale::FindLanguageInfo(preferredLocalename);
+            wxString localeToFind = preferredLocalename.BeforeFirst(':');
+            if(localeToFind.IsEmpty()) {
+                localeToFind << preferredLocalename;
+            }
+            const wxLanguageInfo* info = wxLocale::FindLanguageInfo(localeToFind);
             if(info) {
                 preferredLocale = info->Language;
                 if(preferredLocale == wxLANGUAGE_UNKNOWN) {
@@ -750,7 +779,6 @@ bool CodeLiteApp::CopySettings(const wxString& destDir, wxString& installPath)
     ///////////////////////////////////////////////////////////////////////////////////////////
     CopyDir(installPath + wxT("/templates/"), destDir + wxT("/templates/"));
     massCopy(installPath + wxT("/images/"), wxT("*.png"), destDir + wxT("/images/"));
-    // wxCopyFile(installPath + wxT("/rc/menu.xrc"), destDir + wxT("/rc/menu.xrc"));
     wxCopyFile(installPath + wxT("/index.html"), destDir + wxT("/index.html"));
     wxCopyFile(installPath + wxT("/svnreport.html"), destDir + wxT("/svnreport.html"));
     wxCopyFile(installPath + wxT("/astyle.sample"), destDir + wxT("/astyle.sample"));
@@ -906,25 +934,10 @@ void CodeLiteApp::MSWReadRegistry()
 
 wxString CodeLiteApp::DoFindMenuFile(const wxString& installDirectory, const wxString& requiredVersion)
 {
-    wxString defaultMenuFile = installDirectory + wxFileName::GetPathSeparator() + wxT("rc") +
-                               wxFileName::GetPathSeparator() + wxT("menu.xrc");
-    wxFileName menuFile(clStandardPaths::Get().GetUserDataDir() + wxFileName::GetPathSeparator() + wxT("rc") +
-                        wxFileName::GetPathSeparator() + wxT("menu.xrc"));
-    if(menuFile.FileExists()) {
-        // if we find the user's file menu, check that it has the required version
-        {
-            wxLogNull noLog;
-            wxXmlDocument doc;
-            if(doc.Load(menuFile.GetFullPath())) {
-                wxString version = doc.GetRoot()->GetAttribute(wxT("version"), wxT("1.0"));
-                if(version != requiredVersion) {
-                    return defaultMenuFile;
-                }
-            }
-        }
-        return menuFile.GetFullPath();
-    }
-    return defaultMenuFile;
+    wxUnusedVar(requiredVersion);
+    wxFileName menu_xrc{ installDirectory, MENU_XRC };
+    menu_xrc.AppendDir("rc");
+    return menu_xrc.GetFullPath();
 }
 
 void CodeLiteApp::DoCopyGdbPrinters()

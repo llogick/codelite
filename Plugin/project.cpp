@@ -507,7 +507,7 @@ void Project::CopyTo(const wxString& new_path, const wxString& new_name, const w
             doc.GetRoot()->RemoveChild(deps);
             delete deps;
 
-            // restart the search from the begining
+            // restart the search from the beginning
             deps = doc.GetRoot()->GetChildren();
 
         } else {
@@ -2066,7 +2066,7 @@ void Project::CreateCompileFlags(const wxStringMap_t& compilersGlobalPaths)
         GetWorkspace()->GetLocalWorkspace()->GetParserMacros(macrosStr);
 
         // Loop over the workspace parser paths, fix them and add the to the list of paths
-        wxString workspacePath = GetWorkspace()->GetFileName().GetPath();
+        wxString workspacePath = GetWorkspace()->GetDir();
         ProcessIncludes(workspacePaths, workspacePath, cookie, pathsVec);
 
         // Add the compiler paths

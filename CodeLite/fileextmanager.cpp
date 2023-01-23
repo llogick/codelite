@@ -67,6 +67,8 @@ struct Matcher {
 namespace
 {
 std::unordered_map<wxString, FileExtManager::FileType> m_map;
+std::unordered_map<wxString, std::vector<FileExtManager::FileType>> m_language_bundle;
+std::unordered_map<int, wxString> m_file_type_to_lang;
 std::vector<Matcher> m_matchers;
 bool init_done = false;
 }; // namespace
@@ -81,8 +83,8 @@ void FileExtManager::Init()
         m_map[wxT("c++")] = TypeSourceCpp;
         m_map[wxT("as")] = TypeSourceCpp;  // AngelScript files are handled as C++ source files in CodeLite
         m_map[wxT("ino")] = TypeSourceCpp; // Arduino sketches
-        m_map[wxT("c")] = TypeSourceC;
 
+        m_map[wxT("c")] = TypeSourceC;
         m_map[wxT("h")] = TypeHeader;
         m_map[wxT("hpp")] = TypeHeader;
         m_map[wxT("hxx")] = TypeHeader;
@@ -94,7 +96,9 @@ void FileExtManager::Init()
         m_map[wxT("res")] = TypeResource;
 
         m_map[wxT("y")] = TypeYacc;
+
         m_map[wxT("l")] = TypeLex;
+
         m_map[wxT("ui")] = TypeQtForm;
         m_map[wxT("qrc")] = TypeQtResource;
         m_map[wxT("qml")] = TypeJS;
@@ -102,9 +106,11 @@ void FileExtManager::Init()
         m_map[wxT("project")] = TypeProject;
         m_map[wxT("workspace")] = TypeWorkspace;
         m_map[wxT("fbp")] = TypeFormbuilder;
+
         m_map[wxT("cdp")] = TypeCodedesigner;
         m_map[wxT("erd")] = TypeErd;
 
+        m_map[wxT("phar")] = TypePhar;
         m_map[wxT("php")] = TypePhp;
         m_map[wxT("php5")] = TypePhp;
         m_map[wxT("inc")] = TypePhp;
@@ -121,6 +127,8 @@ void FileExtManager::Init()
         m_map[wxT("ts")] = TypeJS; // TypeScript, but we consider this a JavaScript
         m_map[wxT("py")] = TypePython;
         m_map["json"] = TypeJSON;
+        m_map["conf"] = TypeJSON; // CodeLite configuration files are marked as "conf"
+        m_map["md"] = TypeMarkdown;
 
         // Java file
         m_map[wxT("java")] = TypeJava;
@@ -129,12 +137,17 @@ void FileExtManager::Init()
         m_map[wxT("html")] = TypeHtml;
         m_map[wxT("htm")] = TypeHtml;
 
-        m_map[wxT("tar")] = TypeArchive;
+        m_map[wxT("tar")] = TypeTar;
         m_map[wxT("a")] = TypeArchive;
         m_map[wxT("lib")] = TypeArchive;
-        m_map[wxT("zip")] = TypeArchive;
-        m_map[wxT("rar")] = TypeArchive;
-        m_map[wxT("targz")] = TypeArchive;
+
+        // compressed files
+        m_map[wxT("zip")] = TypeZip;
+        m_map[wxT("rar")] = TypeZip;
+        m_map[wxT("targz")] = TypeZip;
+        m_map[wxT("gz")] = TypeZip;
+        m_map[wxT("bz2")] = TypeZip;
+        m_map[wxT("xz")] = TypeZip;
 
         m_map[wxT("dll")] = TypeDll;
         m_map[wxT("so")] = TypeDll;
@@ -146,9 +159,11 @@ void FileExtManager::Init()
         m_map[wxT("png")] = TypeBmp;
         m_map[wxT("ico")] = TypeBmp;
         m_map[wxT("xpm")] = TypeBmp;
+        m_map[wxT("gif")] = TypeBmp;
         m_map[wxT("svg")] = TypeSvg;
 
         m_map[wxT("mk")] = TypeMakefile;
+        m_map[wxT("m4")] = TypeMakefile;
 
         m_map[wxT("log")] = TypeText;
         m_map[wxT("txt")] = TypeText;
@@ -163,9 +178,9 @@ void FileExtManager::Init()
         m_map[wxT("xrc")] = TypeXRC;
 
         m_map[wxT("sql")] = TypeSQL;
-        m_map[wxT("sqlite")] = TypeSQL;
+        m_map[wxT("sqlite")] = TypeSLite;
         m_map[wxT("phpwsp")] = TypeWorkspacePHP;
-        m_map[wxT("phptags")] = TypeWorkspacePHPTags;
+        m_map[wxT("phptags")] = TypeDatabase;
 
         m_map["pro"] = TypeQMake;
         m_map["pri"] = TypeQMake;
@@ -184,6 +199,32 @@ void FileExtManager::Init()
 
         m_map["rb"] = TypeRuby;
         m_map["md"] = TypeMarkdown;
+        m_map["dart"] = TypeDart;
+
+        m_language_bundle.insert({ "C/C++", { TypeSourceCpp, TypeSourceC, TypeHeader } });
+        m_language_bundle.insert({ "Windows resource files", { TypeResource } });
+        m_language_bundle.insert({ "Yacc", { TypeYacc } });
+        m_language_bundle.insert({ "Lex", { TypeLex } });
+        m_language_bundle.insert({ "Xml", { TypeProject, TypeWorkspace, TypeXml, TypeXRC, TypeSvg, TypeFormbuilder } });
+        m_language_bundle.insert({ "Yaml", { TypeYAML } });
+        m_language_bundle.insert({ "Json",
+                                   { TypeJSON, TypeWorkspaceFileSystem, TypeWxCrafter, TypeWorkspaceDocker,
+                                     TypeWorkspaceNodeJS, TypeWorkspacePHP } });
+        m_language_bundle.insert({ "Rust", { TypeRust } });
+        m_language_bundle.insert({ "Ruby", { TypeRuby } });
+        m_language_bundle.insert({ "Shell script", { TypeShellScript } });
+        m_language_bundle.insert({ "Java", { TypeJava } });
+        m_language_bundle.insert({ "Javascript/Typescript", { TypeJS } });
+        m_language_bundle.insert({ "Python", { TypePython } });
+        m_language_bundle.insert({ "PHP", { TypePhp } });
+        m_language_bundle.insert({ "CMake", { TypeCMake } });
+
+        // build the reverse search table: file type -> language
+        for(auto vt : m_language_bundle) {
+            for(auto t : vt.second) {
+                m_file_type_to_lang.insert({ (int)t, vt.first });
+            }
+        }
 
         // Initialize regexes:
         m_matchers.push_back(Matcher("#[ \t]*!(.*?)sh", TypeShellScript));
@@ -207,6 +248,17 @@ void FileExtManager::Init()
         // #include <
         m_matchers.push_back(Matcher("#include[ \t]+[\\<\"]", TypeSourceCpp));
     }
+}
+std::unordered_map<wxString, FileExtManager::FileType> FileExtManager::GetAllSupportedFileTypes()
+{
+    Init();
+    return m_map;
+}
+
+std::unordered_map<wxString, std::vector<FileExtManager::FileType>> FileExtManager::GetLanguageBundles()
+{
+    Init();
+    return m_language_bundle;
 }
 
 FileExtManager::FileType FileExtManager::GetType(const wxString& filename, FileExtManager::FileType defaultType)
@@ -289,18 +341,23 @@ bool FileExtManager::IsCxxFile(const wxString& filename)
 
 bool FileExtManager::AutoDetectByContent(const wxString& filename, FileExtManager::FileType& fileType)
 {
-    clDEBUG1() << "Using file content to determine its type. File:" << filename << endl;
     wxString fileContent;
     if(!FileUtils::ReadBufferFromFile(filename, fileContent, 1024)) {
         clWARNING() << "Failed to read file's content" << endl;
         return false;
     }
+    return GetContentType(fileContent, fileType);
+}
 
+bool FileExtManager::GetContentType(const wxString& string_content, FileExtManager::FileType& fileType)
+{
     for(size_t i = 0; i < m_matchers.size(); ++i) {
-        if(m_matchers[i].Matches(fileContent)) {
-            clDEBUG1() << "file:" << filename << "is of type:" << m_matchers[i].m_fileType << endl;
-            if(m_matchers[i].m_regex) {
-                clDEBUG1() << "Matching part is:" << m_matchers[i].m_regex->GetMatch(fileContent, 0) << endl;
+        if(m_matchers[i].Matches(string_content)) {
+            LOG_IF_TRACE
+            {
+                if(m_matchers[i].m_regex) {
+                    clDEBUG1() << "Matching part is:" << m_matchers[i].m_regex->GetMatch(string_content, 0) << endl;
+                }
             }
             fileType = m_matchers[i].m_fileType;
             return true;
@@ -347,4 +404,13 @@ bool FileExtManager::IsSymlinkFolder(const wxString& filename)
 {
     return wxFileName::Exists(filename, wxFILE_EXISTS_NO_FOLLOW | wxFILE_EXISTS_SYMLINK) &&
            wxFileName::DirExists(filename);
+}
+
+wxString FileExtManager::GetLanguageFromType(FileExtManager::FileType file_type)
+{
+    if(m_file_type_to_lang.count((int)file_type) == 0) {
+        return wxEmptyString;
+    }
+
+    return m_file_type_to_lang.find((int)file_type)->second;
 }

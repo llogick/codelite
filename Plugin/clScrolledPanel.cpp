@@ -13,13 +13,24 @@
 #endif
 
 clScrolledPanel::clScrolledPanel(wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize& size, long style)
-    : wxWindow(parent, id, pos, size, style)
 {
+    clScrolledPanel::Create(parent, id, pos, size, style);
     DoInitialize();
 }
 
 bool clScrolledPanel::Create(wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize& size, long style)
 {
+#if defined(__WXMSW__)
+    // avoid assert
+    if(wxSystemSettings::GetAppearance().IsDark()) {
+        if(style & wxBORDER_STATIC) {
+            style &= ~wxBORDER_STATIC;
+        }
+    } else {
+        style &= ~wxBORDER_MASK;
+        style |= wxBORDER_STATIC;
+    }
+#endif
     if(!wxWindow::Create(parent, id, pos, size, style)) {
         return false;
     }
@@ -133,7 +144,7 @@ void clScrolledPanel::OnHScroll(wxScrollEvent& event)
     int newColumn = wxNOT_FOUND;
     if(event.GetEventType() == wxEVT_SCROLL_THUMBTRACK) {
         newColumn = event.GetPosition();
-        ScollToColumn(newColumn);
+        ScrollToColumn(newColumn);
 
     } else {
         int steps = wxNOT_FOUND;
@@ -200,7 +211,7 @@ void clScrolledPanel::OnVScroll(wxScrollEvent& event)
 
 #if !wxUSE_NATIVE_SCROLLBAR
 void clScrolledPanel::OnVCustomScroll(clScrollEvent& event) { ScrollToRow(event.GetPosition()); }
-void clScrolledPanel::OnHCustomScroll(clScrollEvent& event) { ScollToColumn(event.GetPosition()); }
+void clScrolledPanel::OnHCustomScroll(clScrollEvent& event) { ScrollToColumn(event.GetPosition()); }
 #endif
 
 void clScrolledPanel::UpdateVScrollBar(int position, int thumbSize, int rangeSize, int pageSize)
@@ -241,11 +252,14 @@ void clScrolledPanel::OnCharHook(wxKeyEvent& event)
     wxKeyEvent keyDown = event;
     keyDown.SetEventType(wxEVT_KEY_DOWN);
     if(DoKeyDown(keyDown)) {
+        // event was handled. Stop processing it
+        event.Skip(false);
         return;
     }
 
     // Always process the HOME/END buttons
     // The following can be processed only once
+    event.Skip(false);
     if(event.GetEventObject() == this) {
         if(event.GetKeyCode() == WXK_HOME) {
             ScrollRows(0, wxUP);
@@ -259,7 +273,13 @@ void clScrolledPanel::OnCharHook(wxKeyEvent& event)
             ScrollRows(GetPageSize(), wxUP);
         } else if(event.GetKeyCode() == WXK_PAGEDOWN) {
             ScrollRows(GetPageSize(), wxDOWN);
+        } else {
+            // propogate the event (i.e. we did not handle it here)
+            event.Skip();
         }
+    } else {
+        // propogate the event (i.e. we did not handle it here)
+        event.Skip();
     }
 }
 

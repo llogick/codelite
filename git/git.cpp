@@ -168,6 +168,7 @@ GitPlugin::GitPlugin(IManager* manager)
     EventNotifier::Get()->Bind(wxEVT_FILES_MODIFIED_REPLACE_IN_FILES, &GitPlugin::OnReplaceInFiles, this);
     EventNotifier::Get()->Bind(wxEVT_ACTIVE_EDITOR_CHANGED, &GitPlugin::OnEditorChanged, this);
     EventNotifier::Get()->Bind(wxEVT_EDITOR_CLOSING, &GitPlugin::OnEditorClosed, this);
+    EventNotifier::Get()->Bind(wxEVT_FILE_MODIFIED_EXTERNALLY, &GitPlugin::OnFileModifiedExternally, this);
 
     wxTheApp->Bind(wxEVT_MENU, &GitPlugin::OnFolderPullRebase, this, XRCID("git_pull_rebase_folder"));
     wxTheApp->Bind(wxEVT_MENU, &GitPlugin::OnFolderCommit, this, XRCID("git_commit_folder"));
@@ -182,6 +183,8 @@ GitPlugin::GitPlugin(IManager* manager)
     m_eventHandler->Connect(XRCID("git_reset_file"), wxEVT_MENU, wxCommandEventHandler(GitPlugin::OnFileResetSelected),
                             NULL, this);
     m_eventHandler->Connect(XRCID("git_diff_file"), wxEVT_MENU, wxCommandEventHandler(GitPlugin::OnFileDiffSelected),
+                            NULL, this);
+    m_eventHandler->Connect(XRCID("git_commit_list_file"), wxEVT_MENU, wxCommandEventHandler(GitPlugin::OnFileCommitListSelected),
                             NULL, this);
     m_eventHandler->Bind(wxEVT_MENU, &GitPlugin::OnFileGitBlame, this, XRCID("git_blame_file"));
 
@@ -211,7 +214,7 @@ GitPlugin::GitPlugin(IManager* manager)
 
 GitPlugin::~GitPlugin() { wxDELETE(m_gitBlameDlg); }
 
-void GitPlugin::CreateToolBar(clToolBar* toolbar) { wxUnusedVar(toolbar); }
+void GitPlugin::CreateToolBar(clToolBarGeneric* toolbar) { wxUnusedVar(toolbar); }
 
 void GitPlugin::CreatePluginMenu(wxMenu* pluginsMenu)
 {
@@ -383,6 +386,7 @@ void GitPlugin::UnPlug()
     EventNotifier::Get()->Unbind(wxEVT_FILE_CREATED, &GitPlugin::OnFileCreated, this);
     EventNotifier::Get()->Unbind(wxEVT_ACTIVE_EDITOR_CHANGED, &GitPlugin::OnEditorChanged, this);
     EventNotifier::Get()->Unbind(wxEVT_EDITOR_CLOSING, &GitPlugin::OnEditorClosed, this);
+    EventNotifier::Get()->Unbind(wxEVT_FILE_MODIFIED_EXTERNALLY, &GitPlugin::OnFileModifiedExternally, this);
     EventNotifier::Get()->Unbind(wxEVT_CC_UPDATE_NAVBAR, &GitPlugin::OnUpdateNavBar, this);
 
     EventNotifier::Get()->Unbind(wxEVT_SOURCE_CONTROL_PUSHED, &GitPlugin::OnGitActionDone, this);
@@ -442,6 +446,9 @@ void GitPlugin::UnPlug()
                                wxCommandEventHandler(GitPlugin::OnFileResetSelected), NULL, this);
     m_eventHandler->Disconnect(XRCID("git_diff_file"), wxEVT_MENU, wxCommandEventHandler(GitPlugin::OnFileDiffSelected),
                                NULL, this);
+    m_eventHandler->Disconnect(XRCID("git_commit_list_file"), wxEVT_MENU, wxCommandEventHandler(GitPlugin::OnFileCommitListSelected),
+                            NULL, this);
+
     EventNotifier::Get()->Unbind(wxEVT_CONTEXT_MENU_FILE, &GitPlugin::OnFileMenu, this);
     EventNotifier::Get()->Unbind(wxEVT_CONTEXT_MENU_FOLDER, &GitPlugin::OnFolderMenu, this);
     wxTheApp->Unbind(wxEVT_MENU, &GitPlugin::OnFolderPullRebase, this, XRCID("git_pull_rebase_folder"));
@@ -467,10 +474,10 @@ void GitPlugin::OnSetGitRepoPath(wxCommandEvent& e)
 void GitPlugin::DoSetRepoPath(const wxString& repo_path)
 {
     if(repo_path.empty()) {
-        if(!m_userEnteredRepositoryDirectory.empty())  {
+        if(!m_userEnteredRepositoryDirectory.empty()) {
             m_repositoryDirectory = m_userEnteredRepositoryDirectory;
         } else {
-        m_repositoryDirectory = FindRepositoryRoot(GetDirFromPath(m_workspace_file));
+            m_repositoryDirectory = FindRepositoryRoot(GetDirFromPath(m_workspace_file));
         }
     } else {
         m_repositoryDirectory = repo_path;
@@ -487,15 +494,16 @@ void GitPlugin::DoSetRepoPath(const wxString& repo_path)
 void GitPlugin::OnSettings(wxCommandEvent& e)
 {
     wxString projectNameHash;
-     if(!m_isRemoteWorkspace) {
+    if(!m_isRemoteWorkspace) {
         wxString workspaceName = m_mgr->GetWorkspace()->GetWorkspaceFileName().GetName();
         wxString projectName = m_mgr->GetWorkspace()->GetActiveProjectName();
         if(!workspaceName.empty() && !projectName.empty()) {
             projectNameHash << workspaceName << '-' << projectName;
         }
-     }
+    }
 
-    GitSettingsDlg dlg(EventNotifier::Get()->TopFrame(), m_repositoryDirectory, m_userEnteredRepositoryDirectory, projectNameHash);
+    GitSettingsDlg dlg(EventNotifier::Get()->TopFrame(), m_repositoryDirectory, m_userEnteredRepositoryDirectory,
+                       projectNameHash);
     int retValue = dlg.ShowModal();
 
     if(retValue == wxID_OK || retValue == wxID_REFRESH) {
@@ -505,7 +513,7 @@ void GitPlugin::OnSettings(wxCommandEvent& e)
             m_repositoryDirectory = m_userEnteredRepositoryDirectory;
             DoSetRepoPath(m_repositoryDirectory);
             CallAfter(&GitPlugin::DoRefreshView, false);
-    }
+        }
         // update the paths
         clConfig conf("git.conf");
         GitEntry data;
@@ -572,6 +580,11 @@ void GitPlugin::OnFileDiffSelected(wxCommandEvent& e)
     if(files.IsEmpty())
         return;
 
+    wxString workingDir = wxFileName(files.Item(0)).GetPath(wxPATH_UNIX);
+    if(!GetRepositoryPath().empty()) {
+        workingDir = GetRepositoryPath();
+    }
+
     // Make the git console visible
     m_mgr->ShowOutputPane("Git");
 
@@ -580,7 +593,10 @@ void GitPlugin::OnFileDiffSelected(wxCommandEvent& e)
         // git add --no-pager
         wxString cmd = "show HEAD:";
 
-        wxString filenameEscaped = filename;
+        wxFileName fn(filename);
+        fn.MakeRelativeTo(workingDir);
+        wxString filenameEscaped = fn.GetFullPath(wxPATH_UNIX);
+
         ::WrapWithQuotes(filenameEscaped);
         cmd << filenameEscaped;
 
@@ -921,14 +937,24 @@ void GitPlugin::OnGarbageColletion(wxCommandEvent& e)
     ProcessGitActionQueue();
 }
 
-void GitPlugin::OnFileSaved(clCommandEvent& e)
+void GitPlugin::OnFileModifiedExternally(clFileSystemEvent& e)
 {
     e.Skip();
+    DoAnyFileModified();
+}
+
+void GitPlugin::DoAnyFileModified()
+{
     DoLoadBlameInfo(true);
     gitAction ga(gitListModified, wxT(""));
     m_gitActionQueue.push_back(ga);
     ProcessGitActionQueue();
     RefreshFileListView();
+}
+void GitPlugin::OnFileSaved(clCommandEvent& e)
+{
+    e.Skip();
+    DoAnyFileModified();
 }
 
 void GitPlugin::OnFilesAddedToProject(clCommandEvent& e)
@@ -1463,10 +1489,13 @@ void GitPlugin::OnProcessTerminated(clProcessEvent& event)
         // Dont manipulate the output if its a diff...
         m_commandOutput.Replace(wxT("\r"), wxT(""));
     }
-
+    if (ga.action == gitDiffRepoCommit && m_commandOutput.StartsWith(wxT("fatal"))) {
+        m_commandOutput.Clear();
+        DoExecuteCommandSync("diff --no-color --cached", &m_commandOutput);
+    }
     if(m_commandOutput.StartsWith(wxT("fatal")) || m_commandOutput.StartsWith(wxT("error"))) {
         // Last action failed, clear queue
-        clDEBUG1() << "[git]" << m_commandOutput << clEndl;
+        LOG_IF_TRACE { clDEBUG1() << "[git]" << m_commandOutput << clEndl; }
         static std::unordered_set<int> recoverableActions = { gitBlameSummary };
         DoRecoverFromGitCommandError(recoverableActions.count(ga.action) == 0);
         GetConsole()->ShowLog();
@@ -1806,10 +1835,10 @@ void GitPlugin::InitDefaults()
 
     if(IsWorkspaceOpened()) {
         m_repositoryDirectory = GetRepositoryPath();
-        
+
         // Load any unusual git-repo path
         wxString projectNameHash, UserEnteredRepoPath;
-         if(!m_isRemoteWorkspace) {
+        if(!m_isRemoteWorkspace) {
             wxString workspaceName = m_mgr->GetWorkspace()->GetWorkspaceFileName().GetName();
             wxString projectName = m_mgr->GetWorkspace()->GetActiveProjectName();
             if(!workspaceName.empty() && !projectName.empty()) {
@@ -1817,7 +1846,7 @@ void GitPlugin::InitDefaults()
                 m_userEnteredRepositoryDirectory = data.GetProjectUserEnteredRepoPath(projectNameHash);
                 m_repositoryDirectory = m_userEnteredRepositoryDirectory;
             }
-         }
+        }
     } else {
         DoCleanup();
     }
@@ -2334,6 +2363,10 @@ void GitPlugin::OnFileMenu(clContextMenuEvent& event)
     item->SetBitmap(bmps->LoadBitmap("diff"));
     menu->Append(item);
 
+    item = new wxMenuItem(menu, XRCID("git_commit_list_file"), _("Show file Log"));
+    item->SetBitmap(bmps->LoadBitmap("tasks"));
+    menu->Append(item);
+
     menu->AppendSeparator();
     item = new wxMenuItem(menu, XRCID("git_blame_file"), _("Show Git Blame"));
     item->SetBitmap(bmps->LoadBitmap("finger"));
@@ -2460,7 +2493,7 @@ void GitPlugin::DoExecuteCommands(const GitCmd::Vec_t& commands, const wxString&
     // Wrap the executable with quotes if needed
     command.Trim().Trim(false);
     ::WrapWithQuotes(command);
-    command << "--no-pager ";
+    command << " --no-pager ";
     m_commandProcessor =
         new clCommandProcessor(command + commands.at(0).baseCommand, workingDir, commands.at(0).processFlags);
     clCommandProcessor* cur = m_commandProcessor;
@@ -2542,6 +2575,9 @@ void GitPlugin::OnFolderCommit(wxCommandEvent& event)
     // 1. Get diff output
     wxString diff;
     bool res = DoExecuteCommandSync("diff --no-color HEAD", &diff, m_selectedFolder);
+    if (diff.empty()) {
+        DoExecuteCommandSync("diff --no-color --cached", &diff);
+    }
     if(!diff.IsEmpty()) {
         wxString commitArgs;
         DoShowCommitDialog(diff, commitArgs);
@@ -2640,7 +2676,7 @@ void GitPlugin::OnActiveProjectChanged(clProjectSettingsEvent& event)
 
     // Load any unusual git-repo path
     wxString projectNameHash;
-     if(!m_isRemoteWorkspace) {
+    if(!m_isRemoteWorkspace) {
         wxString workspaceName = m_mgr->GetWorkspace()->GetWorkspaceFileName().GetName();
         wxString projectName = m_mgr->GetWorkspace()->GetActiveProjectName();
         if(!workspaceName.empty() && !projectName.empty()) {
@@ -2650,7 +2686,7 @@ void GitPlugin::OnActiveProjectChanged(clProjectSettingsEvent& event)
             conf.ReadItem(&data);
             m_userEnteredRepositoryDirectory = data.GetProjectUserEnteredRepoPath(projectNameHash);
         }
-     }
+    }
 
     DoSetRepoPath(m_userEnteredRepositoryDirectory);
 }
@@ -2684,6 +2720,27 @@ void GitPlugin::OnFileGitBlame(wxCommandEvent& event)
     fn.MakeRelativeTo(CLRealPath(m_repositoryDirectory));
 
     DoGitBlame(fn.GetFullPath());
+}
+
+void GitPlugin::OnFileCommitListSelected(wxCommandEvent& e)
+{
+    // Sanity
+    if(m_filesSelected.IsEmpty() || m_repositoryDirectory.empty())
+        return;
+
+    // We need to be symlink-aware here on Linux, so use CLRealPath
+    wxString realfilepath = CLRealPath(m_filesSelected.Item(0));
+    wxFileName fn(realfilepath);
+    fn.MakeRelativeTo(CLRealPath(m_repositoryDirectory));
+
+    if(!m_commitListDlg) {
+        m_commitListDlg = new GitCommitListDlg(EventNotifier::Get()->TopFrame(), m_repositoryDirectory, this);
+    }
+    m_commitListDlg->GetComboExtraArgs()->SetValue(wxT(" -- ") + fn.GetFullPath());
+
+    gitAction ga(gitCommitList, wxT(" -- ") + fn.GetFullPath());
+    m_gitActionQueue.push_back(ga);
+    ProcessGitActionQueue();
 }
 
 void GitPlugin::DisplayMessage(const wxString& message) const
@@ -2740,7 +2797,7 @@ void GitPlugin::OnEditorChanged(wxCommandEvent& event)
 
 void GitPlugin::DoLoadBlameInfo(bool clearCache)
 {
-    if(m_configFlags & GitEntry::Git_Hide_Blame_Status_Bar)
+    if(!(m_configFlags & GitEntry::Git_Show_Commit_Info))
         return;
 
     if(!IsGitEnabled()) {
@@ -2797,7 +2854,7 @@ void GitPlugin::DoUpdateBlameInfo(const wxString& info, const wxString& fullpath
 void GitPlugin::OnUpdateNavBar(clCodeCompletionEvent& event)
 {
     event.Skip();
-    if(m_configFlags & GitEntry::Git_Hide_Blame_Status_Bar) {
+    if(!(m_configFlags & GitEntry::Git_Show_Commit_Info)) {
         return;
     }
 
@@ -2805,11 +2862,11 @@ void GitPlugin::OnUpdateNavBar(clCodeCompletionEvent& event)
     CHECK_PTR_RET(editor);
 
     wxString fullpath = editor->GetRemotePathOrLocal();
-    clDEBUG1() << "Checking blame info for file:" << fullpath << clEndl;
+    LOG_IF_TRACE { clDEBUG1() << "Checking blame info for file:" << fullpath << clEndl; }
     auto where = m_blameMap.find(fullpath);
 
     if(where == m_blameMap.end()) {
-        clDEBUG1() << "Could not get git blame for file:" << fullpath << clEndl;
+        LOG_IF_TRACE { clDEBUG1() << "Could not get git blame for file:" << fullpath << clEndl; }
         clGetManager()->GetNavigationBar()->ClearLabel();
         return;
     }

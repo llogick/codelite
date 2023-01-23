@@ -126,18 +126,6 @@ static char** make_argv(const wxArrayString& args, int& argc)
     return argv;
 }
 
-static void RemoveTerminalColoring(char* buffer)
-{
-    std::string cinput = buffer;
-    std::string coutout;
-    StringUtils::StripTerminalColouring(cinput, coutout);
-
-    // coutout is ALWAYS <= cinput, so we can safely copy the content to the buffer
-    if(coutout.length() < cinput.length()) {
-        strcpy(buffer, coutout.c_str());
-    }
-}
-
 UnixProcessImpl::UnixProcessImpl(wxEvtHandler* parent)
     : IProcess(parent)
     , m_readHandle(-1)
@@ -171,7 +159,7 @@ void UnixProcessImpl::Cleanup()
 
 bool UnixProcessImpl::IsAlive() { return kill(m_pid, 0) == 0; }
 
-bool UnixProcessImpl::ReadFromFd(int fd, fd_set& rset, wxString& output)
+bool UnixProcessImpl::ReadFromFd(int fd, fd_set& rset, wxString& output, std::string& raw_output)
 {
     if(fd == wxNOT_FOUND) {
         return false;
@@ -181,16 +169,21 @@ bool UnixProcessImpl::ReadFromFd(int fd, fd_set& rset, wxString& output)
         char buffer[BUFF_SIZE + 1]; // our read buffer
         int bytesRead = read(fd, buffer, sizeof(buffer));
         if(bytesRead > 0) {
+
             buffer[bytesRead] = 0; // always place a terminator
+            raw_output = std::string(buffer, bytesRead);
 
             // Remove coloring chars from the incomnig buffer
             // colors are marked with ESC and terminates with lower case 'm'
             if(!(this->m_flags & IProcessRawOutput)) {
-                RemoveTerminalColoring(buffer);
+                std::string stripped_buffer;
+                StringUtils::StripTerminalColouring(raw_output, stripped_buffer);
+                raw_output.swap(stripped_buffer);
             }
-            wxString convBuff = wxString(buffer, wxConvUTF8);
-            if(convBuff.IsEmpty()) {
-                convBuff = wxString::From8BitData(buffer);
+
+            wxString convBuff = wxString(raw_output.c_str(), wxConvUTF8, raw_output.length());
+            if(convBuff.empty()) {
+                convBuff = wxString::From8BitData(raw_output.c_str(), raw_output.length());
             }
 
             output.swap(convBuff);
@@ -200,7 +193,7 @@ bool UnixProcessImpl::ReadFromFd(int fd, fd_set& rset, wxString& output)
     return false;
 }
 
-bool UnixProcessImpl::Read(wxString& buff, wxString& buffErr)
+bool UnixProcessImpl::Read(wxString& buff, wxString& buffErr, std::string& raw_buff, std::string& raw_buffErr)
 {
     fd_set rs;
     timeval timeout;
@@ -227,8 +220,8 @@ bool UnixProcessImpl::Read(wxString& buff, wxString& buffErr)
 
     } else if(rc > 0) {
         // We differentiate between stdout and stderr?
-        bool stderrRead = ReadFromFd(GetStderrHandle(), rs, buffErr);
-        bool stdoutRead = ReadFromFd(GetReadHandle(), rs, buff);
+        bool stderrRead = ReadFromFd(GetStderrHandle(), rs, buffErr, raw_buffErr);
+        bool stdoutRead = ReadFromFd(GetReadHandle(), rs, buff, raw_buff);
         return stderrRead || stdoutRead;
 
     } else {
@@ -253,11 +246,14 @@ bool do_write(int fd, const wxMemoryBuffer& buffer)
 
     char* pdata = (char*)buffer.GetData();
     std::string str(pdata, bytes_left);
-    clDEBUG1() << "do_write() buffer:" << str << endl;
-    clDEBUG1() << "do_write() length:" << str.length() << endl;
+    LOG_IF_TRACE
+    {
+        clDEBUG1() << "do_write() buffer:" << str << endl;
+        clDEBUG1() << "do_write() length:" << str.length() << endl;
+    }
     while(bytes_left) {
         int bytes_sent = ::write(fd, (const char*)pdata, bytes_left);
-        clDEBUG1() << "::do_write() completed. number of bytes sent:" << bytes_sent << endl;
+        LOG_IF_TRACE { clDEBUG1() << "::do_write() completed. number of bytes sent:" << bytes_sent << endl; }
         if(bytes_sent <= 0) {
             return false;
         }
@@ -453,4 +449,4 @@ void UnixProcessImpl::Detach()
 
 void UnixProcessImpl::Signal(wxSignal sig) { wxKill(GetPid(), sig, NULL, wxKILL_CHILDREN); }
 
-#endif //#if defined(__WXMAC )||defined(__WXGTK__)
+#endif // #if defined(__WXMAC )||defined(__WXGTK__)

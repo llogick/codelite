@@ -16,6 +16,7 @@
 #include "globals.h"
 
 #include <algorithm>
+#include <wx/bmpbndl.h>
 #include <wx/dcbuffer.h>
 #include <wx/dcmemory.h>
 #include <wx/log.h>
@@ -23,9 +24,81 @@
 #include <wx/settings.h>
 #include <wx/xrc/xmlres.h>
 
+#if wxUSE_NATIVE_TOOLBAR
+clToolBarNative::clToolBarNative(wxWindow* parent, wxWindowID winid, const wxPoint& pos, const wxSize& size, long style,
+                                 const wxString& name)
+    : wxToolBar(parent, winid, pos, size, style, name)
+{
+}
+
+clToolBarNative::~clToolBarNative() {}
+
+wxToolBarToolBase* clToolBarNative::AddTool(wxWindowID id, const wxString& label, size_t bitmapIndex,
+                                            const wxString& helpString, wxItemKind kind)
+{
+    if(m_bitmaps && bitmapIndex < m_bitmaps->size()) {
+        auto normal_bmp = m_bitmaps->Get(bitmapIndex, false);
+        auto disabled_bmp = m_bitmaps->Get(bitmapIndex, true);
+        return wxToolBar::AddTool(id, label, normal_bmp, disabled_bmp, kind);
+    } else {
+        return wxToolBar::AddTool(id, label, wxNullBitmap, wxNullBitmap, kind);
+    }
+}
+
+int clToolBarNative::GetMenuSelectionFromUser(wxWindowID buttonID, wxMenu* menu)
+{
+    wxUnusedVar(buttonID);
+    return wxWindow::GetPopupMenuSelectionFromUser(*menu);
+}
+
+const wxBitmap& clToolBarNative::GetBitmap(size_t index) const
+{
+    wxASSERT_MSG(m_bitmaps, "No bitmaps !?");
+    return m_bitmaps->Get(index, false);
+}
+
+void clToolBarNative::SetBitmaps(clBitmapList* bitmaps)
+{
+    if(m_bitmaps && m_ownedBitmaps) {
+        wxDELETE(m_bitmaps);
+    }
+    m_ownedBitmaps = false;
+    m_bitmaps = bitmaps;
+}
+
+void clToolBarNative::AssignBitmaps(clBitmapList* bitmaps)
+{
+    if(m_bitmaps && m_ownedBitmaps) {
+        wxDELETE(m_bitmaps);
+    }
+    m_ownedBitmaps = true;
+    m_bitmaps = bitmaps;
+}
+
+clBitmapList* clToolBarNative::GetBitmapsCreateIfNeeded()
+{
+    if(m_bitmaps) {
+        return m_bitmaps;
+    }
+    m_ownedBitmaps = true;
+    m_bitmaps = new clBitmapList;
+    return m_bitmaps;
+}
+
+void clToolBarNative::ShowMenuForButton(wxWindowID buttonID, wxMenu* menu)
+{
+    // sanity
+    auto tool = FindById(buttonID);
+    CHECK_PTR_RET(tool);
+
+    // popup menu
+    PopupMenu(menu);
+}
+#endif // wxUSE_NATIVE_TOOLBAR
+
 wxDEFINE_EVENT(wxEVT_TOOLBAR_CUSTOMISE, wxCommandEvent);
-clToolBar::clToolBar(wxWindow* parent, wxWindowID winid, const wxPoint& pos, const wxSize& size, long style,
-                     const wxString& name)
+clToolBarGeneric::clToolBarGeneric(wxWindow* parent, wxWindowID winid, const wxPoint& pos, const wxSize& size,
+                                   long style, const wxString& name)
     : wxPanel(parent, winid, pos, size, style, name)
     , m_popupShown(false)
     , m_flags(kMiniToolBar)
@@ -36,15 +109,15 @@ clToolBar::clToolBar(wxWindow* parent, wxWindowID winid, const wxPoint& pos, con
     SetGroupSpacing(50);
     SetBackgroundStyle(wxBG_STYLE_PAINT);
 
-    Bind(wxEVT_PAINT, &clToolBar::OnPaint, this);
-    Bind(wxEVT_ERASE_BACKGROUND, &clToolBar::OnEraseBackground, this);
-    Bind(wxEVT_LEFT_UP, &clToolBar::OnLeftUp, this);
-    Bind(wxEVT_LEFT_DOWN, &clToolBar::OnLeftDown, this);
-    Bind(wxEVT_LEFT_DCLICK, &clToolBar::OnLeftDown, this);
-    Bind(wxEVT_MOTION, &clToolBar::OnMotion, this);
-    Bind(wxEVT_ENTER_WINDOW, &clToolBar::OnEnterWindow, this);
-    Bind(wxEVT_LEAVE_WINDOW, &clToolBar::OnLeaveWindow, this);
-    Bind(wxEVT_SIZE, &clToolBar::OnSize, this);
+    Bind(wxEVT_PAINT, &clToolBarGeneric::OnPaint, this);
+    Bind(wxEVT_ERASE_BACKGROUND, &clToolBarGeneric::OnEraseBackground, this);
+    Bind(wxEVT_LEFT_UP, &clToolBarGeneric::OnLeftUp, this);
+    Bind(wxEVT_LEFT_DOWN, &clToolBarGeneric::OnLeftDown, this);
+    Bind(wxEVT_LEFT_DCLICK, &clToolBarGeneric::OnLeftDown, this);
+    Bind(wxEVT_MOTION, &clToolBarGeneric::OnMotion, this);
+    Bind(wxEVT_ENTER_WINDOW, &clToolBarGeneric::OnEnterWindow, this);
+    Bind(wxEVT_LEAVE_WINDOW, &clToolBarGeneric::OnLeaveWindow, this);
+    Bind(wxEVT_SIZE, &clToolBarGeneric::OnSize, this);
 
     // to make sure that the toolbar does not get the focus, we restore the focus back to the previous window
     Bind(wxEVT_SET_FOCUS, [](wxFocusEvent& event) {
@@ -56,21 +129,21 @@ clToolBar::clToolBar(wxWindow* parent, wxWindowID winid, const wxPoint& pos, con
     });
 
     m_bgColour = clSystemSettings::GetDefaultPanelColour();
-    EventNotifier::Get()->Bind(wxEVT_CMD_COLOURS_FONTS_UPDATED, &clToolBar::OnColoursChanged, this);
+    EventNotifier::Get()->Bind(wxEVT_CMD_COLOURS_FONTS_UPDATED, &clToolBarGeneric::OnColoursChanged, this);
 }
 
-clToolBar::~clToolBar()
+clToolBarGeneric::~clToolBarGeneric()
 {
-    EventNotifier::Get()->Unbind(wxEVT_CMD_COLOURS_FONTS_UPDATED, &clToolBar::OnColoursChanged, this);
-    Unbind(wxEVT_PAINT, &clToolBar::OnPaint, this);
-    Unbind(wxEVT_ERASE_BACKGROUND, &clToolBar::OnEraseBackground, this);
-    Unbind(wxEVT_LEFT_UP, &clToolBar::OnLeftUp, this);
-    Unbind(wxEVT_MOTION, &clToolBar::OnMotion, this);
-    Unbind(wxEVT_ENTER_WINDOW, &clToolBar::OnEnterWindow, this);
-    Unbind(wxEVT_LEAVE_WINDOW, &clToolBar::OnLeaveWindow, this);
-    Unbind(wxEVT_LEFT_DOWN, &clToolBar::OnLeftDown, this);
-    Unbind(wxEVT_LEFT_DCLICK, &clToolBar::OnLeftDown, this);
-    Unbind(wxEVT_SIZE, &clToolBar::OnSize, this);
+    EventNotifier::Get()->Unbind(wxEVT_CMD_COLOURS_FONTS_UPDATED, &clToolBarGeneric::OnColoursChanged, this);
+    Unbind(wxEVT_PAINT, &clToolBarGeneric::OnPaint, this);
+    Unbind(wxEVT_ERASE_BACKGROUND, &clToolBarGeneric::OnEraseBackground, this);
+    Unbind(wxEVT_LEFT_UP, &clToolBarGeneric::OnLeftUp, this);
+    Unbind(wxEVT_MOTION, &clToolBarGeneric::OnMotion, this);
+    Unbind(wxEVT_ENTER_WINDOW, &clToolBarGeneric::OnEnterWindow, this);
+    Unbind(wxEVT_LEAVE_WINDOW, &clToolBarGeneric::OnLeaveWindow, this);
+    Unbind(wxEVT_LEFT_DOWN, &clToolBarGeneric::OnLeftDown, this);
+    Unbind(wxEVT_LEFT_DCLICK, &clToolBarGeneric::OnLeftDown, this);
+    Unbind(wxEVT_SIZE, &clToolBarGeneric::OnSize, this);
 
     for(size_t i = 0; i < m_buttons.size(); ++i) {
         delete m_buttons[i];
@@ -83,7 +156,7 @@ clToolBar::~clToolBar()
 
 #define CL_TOOL_BAR_CHEVRON_SIZE 16
 
-void clToolBar::OnPaint(wxPaintEvent& event)
+void clToolBarGeneric::OnPaint(wxPaintEvent& event)
 {
     wxUnusedVar(event);
     wxGCDC gcdc;
@@ -123,7 +196,7 @@ void clToolBar::OnPaint(wxPaintEvent& event)
 
     // If we have overflow buttons, draw an arrow to the right
     if(!m_overflowButtons.empty() || IsCustomisationEnabled()) {
-        DrawingUtils::DrawDropDownArrow(this, gcdc, chevronRect);
+        DrawingUtils::DrawDropDownArrow(this, gcdc, chevronRect, wxCONTROL_NONE);
         m_chevronRect = chevronRect;
     }
 
@@ -134,7 +207,7 @@ void clToolBar::OnPaint(wxPaintEvent& event)
     }
 }
 
-void clToolBar::RenderGroup(int& xx, const clToolBar::ToolVect_t& G, wxDC& gcdc, bool isLastGroup)
+void clToolBarGeneric::RenderGroup(int& xx, const clToolBarGeneric::ToolVect_t& G, wxDC& gcdc, bool isLastGroup)
 {
     wxUnusedVar(isLastGroup);
     wxRect clientRect = GetClientRect();
@@ -166,9 +239,9 @@ void clToolBar::RenderGroup(int& xx, const clToolBar::ToolVect_t& G, wxDC& gcdc,
     });
 }
 
-void clToolBar::OnEraseBackground(wxEraseEvent& event) { wxUnusedVar(event); }
+void clToolBarGeneric::OnEraseBackground(wxEraseEvent& event) { wxUnusedVar(event); }
 
-wxRect clToolBar::CalculateRect(wxDC& dc) const
+wxRect clToolBarGeneric::CalculateRect(wxDC& dc) const
 {
     wxRect rect;
     std::for_each(m_buttons.begin(), m_buttons.end(), [&](clToolBarButtonBase* button) {
@@ -181,7 +254,7 @@ wxRect clToolBar::CalculateRect(wxDC& dc) const
     return rect;
 }
 
-void clToolBar::Realize()
+void clToolBarGeneric::Realize()
 {
     wxBitmap bmp;
     bmp.CreateWithDIPSize(wxSize(1, 1), GetDPIScaleFactor());
@@ -192,7 +265,7 @@ void clToolBar::Realize()
     Refresh();
 }
 
-void clToolBar::OnLeftUp(wxMouseEvent& event)
+void clToolBarGeneric::OnLeftUp(wxMouseEvent& event)
 {
     wxPoint pos = event.GetPosition();
     if(m_chevronRect.Contains(pos)) {
@@ -224,7 +297,7 @@ void clToolBar::OnLeftUp(wxMouseEvent& event)
                     if(menu) {
 // We got the menu, show it
 #ifdef __WXOSX__
-                        CallAfter(&clToolBar::ShowMenuForButton, btn->GetId(), menu);
+                        CallAfter(&clToolBarGeneric::ShowMenuForButton, btn->GetId(), menu);
 #else
                         ShowMenuForButton(btn->GetId(), menu);
 #endif
@@ -252,7 +325,7 @@ void clToolBar::OnLeftUp(wxMouseEvent& event)
     }
 }
 
-void clToolBar::OnLeftDown(wxMouseEvent& event)
+void clToolBarGeneric::OnLeftDown(wxMouseEvent& event)
 {
     event.Skip();
     wxPoint pos = event.GetPosition();
@@ -265,7 +338,7 @@ void clToolBar::OnLeftDown(wxMouseEvent& event)
     Refresh();
 }
 
-void clToolBar::OnMotion(wxMouseEvent& event)
+void clToolBarGeneric::OnMotion(wxMouseEvent& event)
 {
     wxPoint pos = event.GetPosition();
     bool refreshNeeded = false;
@@ -307,13 +380,13 @@ void clToolBar::OnMotion(wxMouseEvent& event)
     }
 }
 
-void clToolBar::OnEnterWindow(wxMouseEvent& event)
+void clToolBarGeneric::OnEnterWindow(wxMouseEvent& event)
 {
     wxUnusedVar(event);
     OnMotion(event);
 }
 
-void clToolBar::OnLeaveWindow(wxMouseEvent& event)
+void clToolBarGeneric::OnLeaveWindow(wxMouseEvent& event)
 {
     wxUnusedVar(event);
     if(!m_popupShown) {
@@ -324,25 +397,25 @@ void clToolBar::OnLeaveWindow(wxMouseEvent& event)
     }
 }
 
-clToolBarButtonBase* clToolBar::AddButton(wxWindowID id, size_t bitmapIndex, const wxString& label)
+clToolBarButtonBase* clToolBarGeneric::AddButton(wxWindowID id, size_t bitmapIndex, const wxString& label)
 {
     clToolBarButtonBase* button = new clToolBarButton(this, id, bitmapIndex, label);
     return Add(button);
 }
 
-clToolBarButtonBase* clToolBar::AddMenuButton(wxWindowID id, size_t bitmapIndex, const wxString& label)
+clToolBarButtonBase* clToolBarGeneric::AddMenuButton(wxWindowID id, size_t bitmapIndex, const wxString& label)
 {
     clToolBarButtonBase* button = new clToolBarMenuButton(this, id, bitmapIndex, label);
     return Add(button);
 }
 
-clToolBarButtonBase* clToolBar::AddToggleButton(wxWindowID id, size_t bitmapIndex, const wxString& label)
+clToolBarButtonBase* clToolBarGeneric::AddToggleButton(wxWindowID id, size_t bitmapIndex, const wxString& label)
 {
     clToolBarButtonBase* button = new clToolBarToggleButton(this, id, bitmapIndex, label);
     return Add(button);
 }
 
-clToolBarButtonBase* clToolBar::InsertBefore(wxWindowID where, clToolBarButtonBase* button)
+clToolBarButtonBase* clToolBarGeneric::InsertBefore(wxWindowID where, clToolBarButtonBase* button)
 {
     ToolVect_t::iterator iter =
         std::find_if(m_buttons.begin(), m_buttons.end(), [&](clToolBarButtonBase* b) { return (b->GetId() == where); });
@@ -353,7 +426,7 @@ clToolBarButtonBase* clToolBar::InsertBefore(wxWindowID where, clToolBarButtonBa
     return button;
 }
 
-clToolBarButtonBase* clToolBar::InsertAfter(wxWindowID where, clToolBarButtonBase* button)
+clToolBarButtonBase* clToolBarGeneric::InsertAfter(wxWindowID where, clToolBarButtonBase* button)
 {
     ToolVect_t::iterator iter =
         std::find_if(m_buttons.begin(), m_buttons.end(), [&](clToolBarButtonBase* b) { return (b->GetId() == where); });
@@ -365,13 +438,13 @@ clToolBarButtonBase* clToolBar::InsertAfter(wxWindowID where, clToolBarButtonBas
     return button;
 }
 
-clToolBarButtonBase* clToolBar::Add(clToolBarButtonBase* button)
+clToolBarButtonBase* clToolBarGeneric::Add(clToolBarButtonBase* button)
 {
     m_buttons.push_back(button);
     return button;
 }
 
-void clToolBar::ShowMenuForButton(wxWindowID buttonID, wxMenu* menu)
+void clToolBarGeneric::ShowMenuForButton(wxWindowID buttonID, wxMenu* menu)
 {
     ToolVect_t::iterator iter = std::find_if(m_buttons.begin(), m_buttons.end(),
                                              [&](clToolBarButtonBase* b) { return (b->GetId() == buttonID); });
@@ -400,7 +473,7 @@ void clToolBar::ShowMenuForButton(wxWindowID buttonID, wxMenu* menu)
     }
 }
 
-clToolBarButtonBase* clToolBar::FindById(wxWindowID id) const
+clToolBarButtonBase* clToolBarGeneric::FindById(wxWindowID id) const
 {
     ToolVect_t::const_iterator iter =
         std::find_if(m_buttons.begin(), m_buttons.end(), [&](clToolBarButtonBase* b) { return (b->GetId() == id); });
@@ -410,7 +483,7 @@ clToolBarButtonBase* clToolBar::FindById(wxWindowID id) const
     return (*iter);
 }
 
-bool clToolBar::DeleteById(wxWindowID id)
+bool clToolBarGeneric::DeleteById(wxWindowID id)
 {
     ToolVect_t::iterator iter =
         std::find_if(m_buttons.begin(), m_buttons.end(), [&](clToolBarButtonBase* b) { return (b->GetId() == id); });
@@ -423,12 +496,12 @@ bool clToolBar::DeleteById(wxWindowID id)
     return true;
 }
 
-clToolBarButtonBase* clToolBar::AddSeparator() { return Add(new clToolBarSeparator(this)); }
+clToolBarButtonBase* clToolBarGeneric::AddSeparator() { return Add(new clToolBarSeparator(this)); }
 
-clToolBarButtonBase* clToolBar::AddSpacer() { return Add(new clToolBarSpacer(this)); }
-clToolBarButtonBase* clToolBar::AddStretchableSpace() { return Add(new clToolBarStretchableSpace(this)); }
+clToolBarButtonBase* clToolBarGeneric::AddSpacer() { return Add(new clToolBarSpacer(this)); }
+clToolBarButtonBase* clToolBarGeneric::AddStretchableSpace() { return Add(new clToolBarStretchableSpace(this)); }
 
-void clToolBar::SetDropdownMenu(wxWindowID buttonID, wxMenu* menu)
+void clToolBarGeneric::SetDropdownMenu(wxWindowID buttonID, wxMenu* menu)
 {
     clToolBarButtonBase* button = FindById(buttonID);
     if(!button) {
@@ -437,7 +510,7 @@ void clToolBar::SetDropdownMenu(wxWindowID buttonID, wxMenu* menu)
     button->SetMenu(menu);
 }
 
-wxMenu* clToolBar::FindMenuById(wxWindowID buttonID) const
+wxMenu* clToolBarGeneric::FindMenuById(wxWindowID buttonID) const
 {
     clToolBarButtonBase* button = FindById(buttonID);
     if(!button) {
@@ -446,7 +519,7 @@ wxMenu* clToolBar::FindMenuById(wxWindowID buttonID) const
     return button->GetMenu();
 }
 
-void clToolBar::ToggleTool(wxWindowID buttonID, bool toggle)
+void clToolBarGeneric::ToggleTool(wxWindowID buttonID, bool toggle)
 {
     clToolBarButtonBase* button = FindById(buttonID);
     if(button) {
@@ -454,7 +527,7 @@ void clToolBar::ToggleTool(wxWindowID buttonID, bool toggle)
     }
 }
 
-void clToolBar::UpdateWindowUI(long flags)
+void clToolBarGeneric::UpdateWindowUI(long flags)
 {
     // Call update UI event per button
     if(flags & wxUPDATE_UI_FROMIDLE) {
@@ -464,7 +537,7 @@ void clToolBar::UpdateWindowUI(long flags)
     wxPanel::UpdateWindowUI(flags);
 }
 
-void clToolBar::DoIdleUpdate()
+void clToolBarGeneric::DoIdleUpdate()
 {
     bool refreshNeeded = false;
     for(size_t i = 0; i < m_visibleButtons.size(); ++i) {
@@ -492,7 +565,7 @@ void clToolBar::DoIdleUpdate()
     }
 }
 
-void clToolBar::DoShowOverflowMenu()
+void clToolBarGeneric::DoShowOverflowMenu()
 {
     // Show the drop down menu
     wxMenu menu;
@@ -546,9 +619,9 @@ void clToolBar::DoShowOverflowMenu()
     for(size_t i = 0; i < checkedItems.size(); ++i) {
         menu.Check(checkedItems[i], true);
     }
-    menu.Bind(wxEVT_MENU, &clToolBar::OnOverflowItem, this, wxID_ANY);
+    menu.Bind(wxEVT_MENU, &clToolBarGeneric::OnOverflowItem, this, wxID_ANY);
     PopupMenu(&menu, menuPos);
-    menu.Unbind(wxEVT_MENU, &clToolBar::OnOverflowItem, this, wxID_ANY);
+    menu.Unbind(wxEVT_MENU, &clToolBarGeneric::OnOverflowItem, this, wxID_ANY);
     m_popupShown = false;
 
     wxPoint pt = ::wxGetMousePosition();
@@ -559,7 +632,7 @@ void clToolBar::DoShowOverflowMenu()
     }
 }
 
-void clToolBar::OnOverflowItem(wxCommandEvent& event)
+void clToolBarGeneric::OnOverflowItem(wxCommandEvent& event)
 {
     // Update our button
     clToolBarButtonBase* button = FindById(event.GetId());
@@ -571,15 +644,18 @@ void clToolBar::OnOverflowItem(wxCommandEvent& event)
     event.Skip();
 }
 
-void clToolBar::OnSize(wxSizeEvent& event)
+void clToolBarGeneric::OnSize(wxSizeEvent& event)
 {
     Refresh();
     event.Skip();
 }
 
-clToolBarButtonBase* clToolBar::AddControl(wxWindow* control) { return Add(new clToolBarControl(this, control)); }
+clToolBarButtonBase* clToolBarGeneric::AddControl(wxWindow* control)
+{
+    return Add(new clToolBarControl(this, control));
+}
 
-int clToolBar::GetMenuSelectionFromUser(wxWindowID buttonID, wxMenu* menu)
+int clToolBarGeneric::GetMenuSelectionFromUser(wxWindowID buttonID, wxMenu* menu)
 {
     ToolVect_t::iterator iter = std::find_if(m_buttons.begin(), m_buttons.end(),
                                              [&](clToolBarButtonBase* b) { return (b->GetId() == buttonID); });
@@ -605,7 +681,7 @@ int clToolBar::GetMenuSelectionFromUser(wxWindowID buttonID, wxMenu* menu)
     return selection;
 }
 
-void clToolBar::PrepareForDrawings(wxDC& dc, std::vector<ToolVect_t>& G, const wxRect& rect)
+void clToolBarGeneric::PrepareForDrawings(wxDC& dc, std::vector<ToolVect_t>& G, const wxRect& rect)
 {
     G.clear();
     int totalWidth = 0;
@@ -660,7 +736,7 @@ void clToolBar::PrepareForDrawings(wxDC& dc, std::vector<ToolVect_t>& G, const w
     }
 }
 
-int clToolBar::GetXSpacer() const
+int clToolBarGeneric::GetXSpacer() const
 {
     int spacer = HasFlag(kMiniToolBar) ? 3 : 8;
 #if wxCHECK_VERSION(3, 1, 0)
@@ -669,7 +745,7 @@ int clToolBar::GetXSpacer() const
     return spacer;
 }
 
-int clToolBar::GetYSpacer() const
+int clToolBarGeneric::GetYSpacer() const
 {
     int spacer = HasFlag(kMiniToolBar) ? 6 : 10;
 #if wxCHECK_VERSION(3, 1, 0)
@@ -678,22 +754,22 @@ int clToolBar::GetYSpacer() const
     return spacer;
 }
 
-void clToolBar::OnColoursChanged(clCommandEvent& event)
+void clToolBarGeneric::OnColoursChanged(clCommandEvent& event)
 {
     event.Skip();
     m_bgColour = clSystemSettings::GetDefaultPanelColour();
     Refresh();
 }
 
-void clToolBar::SetGroupSpacing(int spacing) { m_groupSpacing = clGetSize(spacing, this); }
+void clToolBarGeneric::SetGroupSpacing(int spacing) { m_groupSpacing = clGetSize(spacing, this); }
 
-const wxBitmap& clToolBar::GetBitmap(size_t index) const
+const wxBitmap& clToolBarGeneric::GetBitmap(size_t index) const
 {
     wxASSERT_MSG(m_bitmaps, "No bitmaps !?");
     return m_bitmaps->Get(index, false);
 }
 
-void clToolBar::SetBitmaps(clBitmapList* bitmaps)
+void clToolBarGeneric::SetBitmaps(clBitmapList* bitmaps)
 {
     if(m_bitmaps && m_ownedBitmaps) {
         wxDELETE(m_bitmaps);
@@ -702,7 +778,7 @@ void clToolBar::SetBitmaps(clBitmapList* bitmaps)
     m_bitmaps = bitmaps;
 }
 
-void clToolBar::AssignBitmaps(clBitmapList* bitmaps)
+void clToolBarGeneric::AssignBitmaps(clBitmapList* bitmaps)
 {
     if(m_bitmaps && m_ownedBitmaps) {
         wxDELETE(m_bitmaps);
@@ -711,7 +787,7 @@ void clToolBar::AssignBitmaps(clBitmapList* bitmaps)
     m_bitmaps = bitmaps;
 }
 
-clBitmapList* clToolBar::GetBitmapsCreateIfNeeded()
+clBitmapList* clToolBarGeneric::GetBitmapsCreateIfNeeded()
 {
     if(m_bitmaps) {
         return m_bitmaps;

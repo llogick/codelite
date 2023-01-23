@@ -398,12 +398,15 @@ wxBrush DrawingUtils::GetStippleBrush()
     wxMemoryDC memDC;
 #ifdef __WXMSW__
     wxColour bgColour = clSystemSettings::GetColour(wxSYS_COLOUR_3DFACE);
+    wxBitmap bmpStipple(3, 3);
+    wxColour lightPen = bgColour.ChangeLightness(105);
+    wxColour darkPen = clSystemSettings::Get().SelectLightDark(bgColour.ChangeLightness(95), *wxBLACK);
 #else
     wxColour bgColour = clSystemSettings::GetDefaultPanelColour();
-#endif
     wxBitmap bmpStipple(3, 3);
     wxColour lightPen = bgColour.ChangeLightness(105);
     wxColour darkPen = bgColour.ChangeLightness(95);
+#endif
 
     memDC.SelectObject(bmpStipple);
     memDC.SetBrush(bgColour);
@@ -623,7 +626,7 @@ void DrawingUtils::DrawButtonX(wxDC& dc, wxWindow* win, const wxRect& rect, cons
         break;
     case eButtonState::kHover:
         drawBackground = true;
-        bg_colour = is_dark ? bg_colour.ChangeLightness(105) : bg_colour.ChangeLightness(95);
+        bg_colour = is_dark ? bg_colour.ChangeLightness(110) : bg_colour.ChangeLightness(90);
         break;
     case eButtonState::kPressed:
         drawBackground = true;
@@ -710,10 +713,11 @@ void DrawingUtils::DrawButtonMaximizeRestore(wxDC& dc, wxWindow* win, const wxRe
 #endif
 }
 
-void DrawingUtils::DrawDropDownArrow(wxWindow* win, wxDC& dc, const wxRect& rect, const wxColour& colour)
+void DrawingUtils::DrawDropDownArrow(wxWindow* win, wxDC& dc, const wxRect& rect, int flags, const wxColour& colour)
 {
     // make sure we exit this function with the font that we entered
     wxDCFontChanger font_changer(dc);
+    wxDCTextColourChanger text_colour_changer(dc);
 
     // Draw an arrow
     const wxString arrowSymbol = wxT("\u25BC");
@@ -724,9 +728,13 @@ void DrawingUtils::DrawDropDownArrow(wxWindow* win, wxDC& dc, const wxRect& rect
 
     wxColour buttonColour = colour;
     if(!buttonColour.IsOk()) {
-        // No colour provided, provide one
+        // No colour provided, provide one based on the system colours
         buttonColour = clSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT);
-        buttonColour = IsDark(buttonColour) ? buttonColour.ChangeLightness(120) : buttonColour.ChangeLightness(80);
+        buttonColour = IsDark(colour) ? buttonColour.ChangeLightness(120) : buttonColour.ChangeLightness(80);
+    }
+
+    if(flags & wxCONTROL_DISABLED) {
+        buttonColour = buttonColour.ChangeLightness(clSystemSettings::IsDark() ? 50 : 150);
     }
 
     dc.SetTextForeground(buttonColour);
@@ -765,7 +773,7 @@ void DrawingUtils::DrawCustomChoice(wxWindow* win, wxDC& dc, const wxRect& rect,
     dc.SetBrush(baseColour);
     dc.SetPen(borderColour);
     dc.DrawRoundedRectangle(choiceRect, 3.0);
-    DrawDropDownArrow(win, dc, dropDownRect, arrowColour);
+    DrawDropDownArrow(win, dc, dropDownRect, wxCONTROL_SELECTED | wxCONTROL_FOCUSED, arrowColour);
 
     // Common to all platforms: draw the text + bitmap
     wxRect textRect = choiceRect;
@@ -821,7 +829,7 @@ void DrawingUtils::DrawNativeChoice(wxWindow* win, wxDC& dc, const wxRect& rect,
         dc.SetBrush(clSystemSettings::GetColour(wxSYS_COLOUR_BTNFACE));
         dc.SetPen(borderColour);
         dc.DrawRoundedRectangle(choiceRect, 3.0);
-        DrawDropDownArrow(win, dc, dropDownRect);
+        DrawDropDownArrow(win, dc, dropDownRect, wxCONTROL_NONE, wxNullColour);
     } else {
         wxRendererNative::Get().DrawChoice(win, dc, choiceRect, 0);
     }

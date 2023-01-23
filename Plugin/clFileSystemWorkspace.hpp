@@ -95,7 +95,8 @@ public:
     /// IWorkspace interface
     ///===--------------------------
     wxString GetActiveProjectName() const override;
-    wxFileName GetFileName() const override;
+    wxString GetFileName() const override;
+    wxString GetDir() const override;
     wxString GetFilesMask() const override;
     void GetProjectFiles(const wxString& projectName, wxArrayString& files) const override;
     wxString GetProjectFromFile(const wxFileName& filename) const override;
@@ -106,6 +107,7 @@ public:
     wxFileName GetProjectFileName(const wxString& projectName) const override;
     void SetProjectActive(const wxString& project) override;
     wxString GetDebuggerName() const override;
+    clEnvList_t GetEnvironment() const override;
 
     /**
      * @brief return the executable to run + args + working directory

@@ -279,6 +279,12 @@ protected:
     std::vector<eLineStatus> m_modifiedLines;
     bool m_trackChanges = false;
     std::unordered_map<int, wxString> m_breakpoints_tooltips;
+    size_t m_default_text_width = wxNOT_FOUND;
+    bool m_scrollbar_recalc_is_required = false;
+    // we keep an integer that will check whether a CC needs to be triggered
+    // in the given location. This is done inside OnSciUpdateUI() method
+    // after the styles have been updated
+    int m_trigger_cc_at_pos = wxNOT_FOUND;
 
 public:
     static bool m_ccShowPrivateMembers;
@@ -1148,8 +1154,10 @@ private:
     // Line numbers drawings
     void DoUpdateLineNumbers(bool relative_numbers);
     void UpdateLineNumbers();
+    void UpdateDefaultTextWidth();
 
     // Event handlers
+    void OnIdle(wxIdleEvent& event);
     void OpenURL(wxCommandEvent& event);
     void OnHighlightWordChecked(wxCommandEvent& e);
     void OnRemoveMatchInidicator(wxCommandEvent& e);
@@ -1187,6 +1195,7 @@ private:
     void OnFileFormatStarting(wxCommandEvent& e);
     void OnTimer(wxTimerEvent& event);
     void OnEditorConfigChanged(wxCommandEvent& event);
+    void OnColoursAndFontsUpdated(clCommandEvent& event);
 };
 
 #endif // LITEEDITOR_EDITOR_H

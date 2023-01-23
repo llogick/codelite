@@ -135,7 +135,7 @@ void CompileCommandsGenerator::GenerateCompileCommands()
     command << codeliteMake.GetFullPath();
     ::WrapWithQuotes(command);
 
-    wxString workspaceFile = clCxxWorkspaceST::Get()->GetFileName().GetFullPath();
+    wxString workspaceFile = clCxxWorkspaceST::Get()->GetFileName();
     ::WrapWithQuotes(workspaceFile);
 
     wxString configName =

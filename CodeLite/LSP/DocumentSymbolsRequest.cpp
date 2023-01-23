@@ -10,15 +10,19 @@
 
 namespace
 {
-FileLogger& operator<<(FileLogger& logger, const std::vector<LSP::SymbolInformation>& symbols)
+clModuleLogger& operator<<(clModuleLogger& logger, const std::vector<LSP::SymbolInformation>& symbols)
 {
+    if(!logger.CanLog()) {
+        return logger;
+    }
+
     wxString s;
     s << "\n[\n";
     for(const LSP::SymbolInformation& d : symbols) {
         s << "  " << d.GetContainerName() << "." << d.GetName() << ",\n";
     }
     s << "]\n";
-    logger.Append(s, logger.GetRequestedLogLevel());
+    logger.Append(s);
     return logger;
 }
 } // namespace
@@ -36,11 +40,11 @@ LSP::DocumentSymbolsRequest::~DocumentSymbolsRequest() {}
 
 void LSP::DocumentSymbolsRequest::OnResponse(const LSP::ResponseMessage& const_response, wxEvtHandler* owner)
 {
-    clDEBUG() << "LSP::DocumentSymbolsRequest::OnResponse() is called!" << endl;
+    LSP_DEBUG() << "LSP::DocumentSymbolsRequest::OnResponse() is called!" << endl;
     LSP::ResponseMessage& response = const_cast<LSP::ResponseMessage&>(const_response);
     auto json = std::move(response.take());
     if(!json->toElement().hasNamedObject("result")) {
-        clWARNING() << "LSP::DocumentSymbolsRequest::OnResponse(): invalid 'result' object";
+        LSP_WARNING() << "LSP::DocumentSymbolsRequest::OnResponse(): invalid 'result' object";
         return;
     }
 
@@ -69,7 +73,8 @@ void LSP::DocumentSymbolsRequest::OnResponse(const LSP::ResponseMessage& const_r
                           return a.GetLocation().GetRange().GetStart().GetLine() <
                                  b.GetLocation().GetRange().GetStart().GetLine();
                       });
-            clDEBUG1() << symbols << endl;
+
+            LOG_IF_TRACE { LSP_TRACE() << symbols << endl; }
 
             // fire event per context
             if(context & CONTEXT_SEMANTIC_HIGHLIGHT) {

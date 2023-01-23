@@ -1,5 +1,6 @@
 #include "clSystemSettings.h"
 
+#include "ColoursAndFontsManager.h"
 #include "cl_config.h"
 #include "codelite_events.h"
 #include "drawingutils.h"
@@ -81,7 +82,7 @@ wxColour clSystemSettings::GetColour(int index)
     }
 #endif
 
-    if(!IS_MAC && m_useCustomColours) {
+    if(!IS_MAC && !IS_MSW && m_useCustomColours) {
         bool is_dark = DrawingUtils::IsDark(m_customColours.GetBgColour());
 
         if(index == wxSYS_COLOUR_TOOLBAR) {
@@ -193,11 +194,15 @@ void clSystemSettings::DoColourChangedEvent()
 wxColour clSystemSettings::GetDefaultPanelColour()
 {
     wxColour panel_colour;
+#ifdef __WXMSW__
+    panel_colour = GetColour(wxSYS_COLOUR_3DFACE);
+#else
     panel_colour = GetColour(IS_GTK ? wxSYS_COLOUR_WINDOW : wxSYS_COLOUR_3DFACE);
 #ifdef __WXGTK__
     if(!m_useCustomColours && !DrawingUtils::IsDark(panel_colour)) {
         panel_colour = panel_colour.ChangeLightness(95);
     }
+#endif
 #endif
     return panel_colour;
 }
@@ -217,3 +222,11 @@ void clSystemSettings::OnAppActivated(wxActivateEvent& event)
 }
 
 void clSystemSettings::SampleColoursFromControls() {}
+
+bool clSystemSettings::IsLexerThemeDark()
+{
+    auto lexer = ColoursAndFontsManager::Get().GetLexer("text");
+    return lexer && lexer->IsDark();
+}
+
+bool clSystemSettings::IsDark() { return DrawingUtils::IsDark(GetDefaultPanelColour()); }

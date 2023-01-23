@@ -28,20 +28,7 @@ void GetTabColours(const clTabColours& colours, size_t style, wxColour* activeTa
 {
     *bgColour = colours.tabAreaColour;
     *activeTabBgColour = colours.activeTabBgColour;
-#if 0
-    bool is_dark = DrawingUtils::IsDark(colours.activeTabBgColour);
-    // If we are painting the active tab, check to see if the page is of type wxStyledTextCtrl
-    if(style & kNotebook_DynamicColours) {
-        auto editor = clGetManager()->GetActiveEditor();
-        if(editor) {
-            *activeTabBgColour = editor->GetCtrl()->StyleGetBackground(0);
-            is_dark = DrawingUtils::IsDark(*activeTabBgColour);
-        }
-        *bgColour = activeTabBgColour->ChangeLightness(is_dark ? 120 : 80);
-    }
-#else
     wxUnusedVar(style);
-#endif
 }
 int X_BUTTON_SIZE = 20;
 void SetBestXButtonSize(wxWindow* win) { wxUnusedVar(win); }
@@ -156,12 +143,13 @@ void clTabInfo::CalculateOffsets(size_t style, wxDC& dc)
     m_bmpX = wxNOT_FOUND;
     m_bmpY = wxNOT_FOUND;
 
-    if(HasBitmap()) {
-        const wxBitmap& bmp = m_tabCtrl->GetBitmaps()->Get(m_bitmap, false);
-        m_bmpX = m_width;
-        m_width += bmp.GetScaledWidth();
-        m_bmpY = ((m_height - bmp.GetScaledHeight()) / 2);
-        m_width += X_spacer;
+    // x button
+    wxRect xrect;
+    if((style & kNotebook_CloseButtonOnActiveTab)) {
+        xrect = wxRect(m_width, 0, X_BUTTON_SIZE, X_BUTTON_SIZE);
+        m_bmpCloseX = xrect.GetX();
+        m_bmpCloseY = 0; // we will fix this later
+        m_width += xrect.GetWidth() + m_tabCtrl->FromDIP(5);
     }
 
     // Text
@@ -171,13 +159,12 @@ void clTabInfo::CalculateOffsets(size_t style, wxDC& dc)
     m_textWidth = sz.x;
     m_width += X_spacer;
 
-    // x button
-    wxRect xrect;
-    if((style & kNotebook_CloseButtonOnActiveTab)) {
-        xrect = wxRect(m_width, 0, X_BUTTON_SIZE, X_BUTTON_SIZE);
-        m_bmpCloseX = xrect.GetX();
-        m_bmpCloseY = 0; // we will fix this later
-        m_width += xrect.GetWidth() + m_tabCtrl->FromDIP(5);
+    if(HasBitmap()) {
+        const wxBitmap& bmp = m_tabCtrl->GetBitmaps()->Get(m_bitmap, false);
+        m_bmpX = m_width;
+        m_width += bmp.GetScaledWidth();
+        m_bmpY = ((m_height - bmp.GetScaledHeight()) / 2);
+        m_width += X_spacer;
     }
 
     // Update the rect width
@@ -337,7 +324,9 @@ void clTabRenderer::DrawChevron(wxWindow* win, wxDC& dc, const wxRect& rect, con
     } else {
         buttonColour = colours.tabAreaColour.ChangeLightness(50);
     }
-    DrawingUtils::DrawDropDownArrow(win, dc, rect, buttonColour);
+
+    int flags = wxCONTROL_NONE;
+    DrawingUtils::DrawDropDownArrow(win, dc, rect, flags, buttonColour);
 }
 
 int clTabRenderer::GetDefaultBitmapHeight(int Y_spacer)
@@ -428,9 +417,9 @@ void clTabRenderer::FinaliseBackground(wxWindow* parent, wxDC& dc, const wxRect&
     GetTabColours(colours, style, &active_tab_colour, &bg_colour);
     bool is_dark = DrawingUtils::IsDark(bg_colour);
     dc.SetPen(bg_colour.ChangeLightness(is_dark ? 60 : 80));
-    dc.DrawLine(clientRect.GetTopRight(), clientRect.GetTopLeft());
-    dc.DrawLine(clientRect.GetTopLeft(), clientRect.GetBottomLeft());
-    dc.DrawLine(clientRect.GetTopRight(), clientRect.GetBottomRight());
+    // dc.DrawLine(clientRect.GetTopRight(), clientRect.GetTopLeft());
+    // dc.DrawLine(clientRect.GetTopLeft(), clientRect.GetBottomLeft());
+    // dc.DrawLine(clientRect.GetTopRight(), clientRect.GetBottomRight());
 }
 
 void clTabRenderer::AdjustColours(clTabColours& colours, size_t style)

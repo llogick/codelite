@@ -49,6 +49,7 @@ class DAPConsoleOutput;
 class DAPModuleView;
 class DAPBreakpointsView;
 class IProcess;
+class DAPWatchesView;
 
 class DebugAdapterClient : public IPlugin
 {
@@ -70,6 +71,7 @@ class DebugAdapterClient : public IPlugin
     DAPTextView* m_textView = nullptr;
     DAPOutputPane* m_outputView = nullptr;
     DAPTooltip* m_tooltip = nullptr;
+    DAPWatchesView* m_watchesView = nullptr;
 
     bool m_raisOnBpHit;
     bool m_isPerspectiveLoaded;
@@ -80,7 +82,7 @@ class DebugAdapterClient : public IPlugin
 
 private:
     wxString ReplacePlaceholders(const wxString& str) const;
-
+    void UpdateWatches();
     void DestroyUI();
     void InitializeUI();
     void LoadPerspective();
@@ -187,13 +189,14 @@ public:
     //--------------------------------------------
     // Abstract methods
     //--------------------------------------------
-    void CreateToolBar(clToolBar* toolbar) override;
+    void CreateToolBar(clToolBarGeneric* toolbar) override;
     void CreatePluginMenu(wxMenu* pluginsMenu) override;
     void HookPopupMenu(wxMenu* menu, MenuType type) override;
     void UnPlug() override;
 
     // expose these API calls to the views can use it
     dap::Client& GetClient() { return m_client; }
+    int GetCurrentFrameId() const;
     void LoadFile(const dap::Source& sourceId, int line_number);
 };
 

@@ -10,6 +10,7 @@
 #include "clFileSystemWorkspaceConfig.hpp"
 #include "clRemoteFinderHelper.hpp"
 #include "clRemoteTerminal.hpp"
+#include "clSFTPEvent.h"
 #include "cl_command_event.h"
 #include "ieditor.h"
 #include "ssh_account_info.h"
@@ -62,9 +63,6 @@ public:
     virtual ~RemotyWorkspace();
 
 protected:
-    void ConfigureLsp(const JSONItem& output);
-    void DoConfigureLSP(const LSPParams& lsp);
-
     void BindEvents();
     void UnbindEvents();
     void Initialise();
@@ -84,19 +82,14 @@ protected:
     void OnDownloadFile(clCommandEvent& event);
     void OnStopFindInFiles(clFindInFilesEvent& event);
 
-    // keep the LSPs state as it were before we added our remote ones
-    // and disable them
-    void LSPStoreAndDisableCurrent();
-    // restore the LSPs state
-    void LSPRestore();
+    void OnSftpSaveError(clCommandEvent& event);
+    void OnSftpSaveSuccess(clCommandEvent& event);
 
     /// codelite-remote exec handlers
     void DoProcessBuildOutput(const wxString& output, bool is_completed);
 
     /// open a workspace file
     void DoOpen(const wxString& path, const wxString& account);
-
-    void DeleteLspEntries();
     void OnCodeLiteRemoteTerminated(clCommandEvent& event);
 
     IProcess* DoRunSSHProcess(const wxString& scriptContent, bool sync = false);
@@ -124,25 +117,19 @@ protected:
     void OnCodeLiteRemoteFindProgress(clFindInFilesEvent& event);
     void OnCodeLiteRemoteFindDone(clFindInFilesEvent& event);
 
-    void OnCodeLiteRemoteListLSPsOutputDone(clCommandEvent& event);
-    void OnCodeLiteRemoteListLSPsOutput(clCommandEvent& event);
-
     void OnCodeLiteRemoteListFilesProgress(clCommandEvent& event);
     void OnCodeLiteRemoteListFilesDone(clCommandEvent& event);
 
     wxString CreateEnvScriptContent() const;
     wxString UploadScript(const wxString& content, const wxString& script_path = wxEmptyString) const;
-    /**
-     * @brief scan for remote lsps and configure them
-     */
-    void ScanForLSPs();
 
     void RestoreSession();
 
 public:
     // IWorkspace
     wxString GetActiveProjectName() const override { return wxEmptyString; }
-    wxFileName GetFileName() const override;
+    wxString GetFileName() const override;
+    wxString GetDir() const override;
     wxString GetFilesMask() const override;
     wxFileName GetProjectFileName(const wxString& projectName) const override;
     void GetProjectFiles(const wxString& projectName, wxArrayString& files) const override;
@@ -152,6 +139,8 @@ public:
     bool IsBuildSupported() const override;
     bool IsProjectSupported() const override;
     wxString GetDebuggerName() const override;
+    bool IsRemote() const override { return true; }
+    wxString GetSshAccount() const override;
 
     /**
      * @brief return the remote workspace directory (on the remote machine)

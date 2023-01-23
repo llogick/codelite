@@ -3,7 +3,7 @@
 #include "clSystemSettings.h"
 #include "drawingutils.h"
 
-clToolBarStretchableSpace::clToolBarStretchableSpace(clToolBar* parent)
+clToolBarStretchableSpace::clToolBarStretchableSpace(clToolBarGeneric* parent)
     : clToolBarButtonBase(parent, wxID_SEPARATOR, INVALID_BITMAP_ID, "", kDisabled | kStretchalbeSpace)
 {
 }

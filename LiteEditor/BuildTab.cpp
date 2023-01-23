@@ -24,8 +24,11 @@ namespace
 {
 struct LineClientData {
     wxString project_name;
+    // use this as the root folder for changing relative paths to abs. If empty, use the workspace path
+    wxString root_dir;
     Compiler::PatternMatch match_pattern;
     wxString message;
+    wxString toolchain;
 };
 
 } // namespace
@@ -66,6 +69,8 @@ void BuildTab::OnBuildStarted(clBuildEvent& e)
 {
     e.Skip();
     m_buildInProgress = true;
+    m_currentRootDir.clear();
+    m_currentProjectName.clear();
 
     // clear all build markers
     IEditor::List_t all_editors;
@@ -134,6 +139,7 @@ void BuildTab::OnBuildEnded(clBuildEvent& e)
     EventNotifier::Get()->AddPendingEvent(build_ended_event);
 
     m_currentProjectName.clear();
+    m_currentRootDir.clear();
 }
 
 void BuildTab::ProcessBuffer(bool last_line)
@@ -155,13 +161,20 @@ void BuildTab::ProcessBuffer(bool last_line)
         if(line.Lower().Contains("entering directory") || line.Lower().Contains("leaving directory")) {
             line = WrapLineInColour(line, eAsciiColours::GRAY);
             m_view->AppendItem(line);
+
         } else if(line.Lower().Contains("building project")) {
             ProcessBuildingProjectLine(line);
             line = WrapLineInColour(line, eAsciiColours::NORMAL_TEXT, true);
             m_view->AppendItem(line);
+
+        } else if(m_activeCompiler && (m_activeCompiler->GetName() == "rustc") && line.Lower().Contains("compiling") &&
+                  ProcessCargoBuildLine(line)) {
+            m_view->AppendItem(line);
+
         } else {
             std::unique_ptr<LineClientData> m(new LineClientData);
             m->message = line;
+            m->root_dir = m_currentRootDir; // maybe empty string
 
             // remove the terminal ascii colouring escape code
             wxString modified_line;
@@ -194,6 +207,7 @@ void BuildTab::ProcessBuffer(bool last_line)
             // Note: its OK to pass null here
             if(m) {
                 // set the line project name
+                m->toolchain = m_activeCompiler->GetName();
                 m->project_name = GetCurrentProjectName();
             }
             m_view->AppendItem(line, wxNOT_FOUND, wxNOT_FOUND, (wxUIntPtr)m.release());
@@ -251,13 +265,14 @@ wxString BuildTab::WrapLineInColour(const wxString& line, eAsciiColours colour, 
 
 void BuildTab::OnLineActivated(wxDataViewEvent& e)
 {
-    clDEBUG1() << "Build line double clicked" << endl;
+    LOG_IF_TRACE { clDEBUG1() << "Build line double clicked" << endl; }
     auto cd = reinterpret_cast<LineClientData*>(m_view->GetItemData(e.GetItem()));
     CHECK_PTR_RET(cd);
 
     // let the plugins a first chance in handling this line
     if(!cd->match_pattern.file_path.empty()) {
         clBuildEvent eventErrorClicked(wxEVT_BUILD_OUTPUT_HOTSPOT_CLICKED);
+        eventErrorClicked.SetBuildDir(cd->root_dir); // can be empty
         eventErrorClicked.SetFileName(cd->match_pattern.file_path);
         eventErrorClicked.SetLineNumber(cd->match_pattern.line_number);
         eventErrorClicked.SetProjectName(cd->project_name);
@@ -272,16 +287,18 @@ void BuildTab::OnLineActivated(wxDataViewEvent& e)
             // if we resolved it now, open the file there is no point in searching this file
             // in m_buildInfoPerFile since the key on this map is kept as full name
             int line_number = cd->match_pattern.line_number;
+            line_number -= 1;
+
             int column = cd->match_pattern.column != wxNOT_FOUND ? cd->match_pattern.column - 1 : wxNOT_FOUND;
             auto cb = [=](IEditor* editor) {
                 editor->GetCtrl()->ClearSelections();
                 // compilers report line numbers starting from `1`
                 // our editor sees line numbers starting from `0`
-                editor->CenterLine(line_number - 1, column);
+                editor->CenterLine(line_number, column);
                 if(cd->match_pattern.sev == Compiler::kSevError) {
-                    editor->SetErrorMarker(line_number - 1, cd->message);
+                    editor->SetErrorMarker(line_number, cd->message);
                 } else {
-                    editor->SetWarningMarker(line_number - 1, cd->message);
+                    editor->SetWarningMarker(line_number, cd->message);
                 }
                 editor->SetActive();
             };
@@ -442,6 +459,23 @@ wxString BuildTab::CreateSummaryLine()
         text << " ===";
     }
     return text;
+}
+
+bool BuildTab::ProcessCargoBuildLine(const wxString& line)
+{
+    // An example for such a line:
+    //  Compiling hello_rust v0.1.0 (C:\Users\eran\Documents\HelloRust\HelloRust\cargo-project)
+    static wxRegEx re_compiling{ R"#(Compiling[ \t]+.*?\((.*?)\))#" };
+    wxString strippedLine;
+    StringUtils::StripTerminalColouring(line, strippedLine);
+
+    if(re_compiling.IsValid() && re_compiling.Matches(strippedLine)) {
+        m_currentRootDir = re_compiling.GetMatch(strippedLine, 1); // get the path
+        m_currentRootDir.Trim().Trim(false);
+        LOG_IF_DEBUG { clDEBUG() << "Rustc: current root dir is:" << m_currentRootDir << endl; }
+        return true;
+    }
+    return false;
 }
 
 void BuildTab::ProcessBuildingProjectLine(const wxString& line)

@@ -2,7 +2,7 @@
 
 #include "drawingutils.h"
 
-clToolBarControl::clToolBarControl(clToolBar* parent, wxWindow* control)
+clToolBarControl::clToolBarControl(clToolBarGeneric* parent, wxWindow* control)
     : clToolBarButtonBase(parent, wxID_ANY, INVALID_BITMAP_ID, "", kControl)
     , m_ctrl(control)
 {
@@ -25,7 +25,7 @@ void clToolBarControl::Render(wxDC& dc, const wxRect& rect)
     controlRect = controlRect.CenterIn(rect, wxVERTICAL);
     controlRect.SetX(rect.GetX());
     m_ctrl->Move(controlRect.GetTopLeft());
-    m_ctrl->SetBackgroundColour(DrawingUtils::GetMenuBarBgColour(m_toolbar->HasFlag(clToolBar::kMiniToolBar)));
+    m_ctrl->SetBackgroundColour(DrawingUtils::GetMenuBarBgColour(m_toolbar->HasFlag(clToolBarGeneric::kMiniToolBar)));
     m_ctrl->SetForegroundColour(DrawingUtils::GetTextCtrlTextColour());
     if(!m_ctrl->IsShown()) {
         m_ctrl->Show();

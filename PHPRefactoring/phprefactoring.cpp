@@ -53,7 +53,7 @@ PHPRefactoring::PHPRefactoring(IManager* manager)
 
 PHPRefactoring::~PHPRefactoring() {}
 
-void PHPRefactoring::CreateToolBar(clToolBar* toolbar) { wxUnusedVar(toolbar); }
+void PHPRefactoring::CreateToolBar(clToolBarGeneric* toolbar) { wxUnusedVar(toolbar); }
 
 void PHPRefactoring::CreatePluginMenu(wxMenu* pluginsMenu)
 {

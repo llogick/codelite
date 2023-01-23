@@ -1,6 +1,6 @@
 #include "clToolBarSeparator.h"
 
-clToolBarSeparator::clToolBarSeparator(clToolBar* parent)
+clToolBarSeparator::clToolBarSeparator(clToolBarGeneric* parent)
     : clToolBarButtonBase(parent, wxID_SEPARATOR, INVALID_BITMAP_ID, "", kDisabled | kSeparator)
 {
 }

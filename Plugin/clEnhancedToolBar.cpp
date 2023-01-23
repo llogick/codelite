@@ -5,7 +5,7 @@
 
 clEnhancedToolBar::clEnhancedToolBar(wxWindow* parent, wxWindowID winid, const wxPoint& pos, const wxSize& size,
                                      long style, const wxString& name)
-    : clToolBar(parent, winid, pos, size, style, name)
+    : clToolBarGeneric(parent, winid, pos, size, style, name)
 {
 }
 
@@ -61,6 +61,6 @@ void clEnhancedToolBar::SetButtonAction(wxWindowID buttonId, wxWindowID actionID
     }
     button->SetBitmapIndex(btn->bmp_id);
     button->SetLabel(btn->label);
-    clDEBUG1() << "toolbar button changed state to" << btn->label;
+    LOG_IF_TRACE { clDEBUG1() << "toolbar button changed state to" << btn->label; }
     Refresh();
 }

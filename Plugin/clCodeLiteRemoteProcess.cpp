@@ -74,7 +74,10 @@ public:
     void Detach() override {}
 
     // Read from process stdout - return immediately if no data is available
-    bool Read(wxString& buff, wxString& buffErr) override { return false; }
+    bool Read(wxString& buff, wxString& buffErr, std::string& raw_buff, std::string& raw_buff_err) override
+    {
+        return false;
+    }
 
     // Write to the process stdin
     // This version add LF to the buffer
@@ -348,7 +351,7 @@ void clCodeLiteRemoteProcess::ListFiles(const wxString& root_dir, const wxString
     item.addProperty("command", "ls");
     item.addProperty("root_dir", root_dir);
     item.addProperty("file_extensions", ::wxStringTokenize(exts, ",; |", wxTOKEN_STRTOK));
-    clDEBUG1() << "ListFiles: sending command:" << item.format(false) << endl;
+    LOG_IF_TRACE { clDEBUG1() << "ListFiles: sending command:" << item.format(false) << endl; }
     m_process->Write(item.format(false) + "\n");
 
     // push a callback
@@ -377,7 +380,7 @@ void clCodeLiteRemoteProcess::Search(const wxString& root_dir, const wxString& e
 
     wxString command = item.format(false);
     m_process->Write(command + "\n");
-    clDEBUG1() << command << endl;
+    LOG_IF_TRACE { clDEBUG1() << command << endl; }
 
     // push a callback
     m_completionCallbacks.push_back({ &clCodeLiteRemoteProcess::OnFindOutput, nullptr });
@@ -410,7 +413,7 @@ void clCodeLiteRemoteProcess::Locate(const wxString& path, const wxString& name,
 
     wxString command = item.format(false);
     m_process->Write(command + "\n");
-    clDEBUG1() << command << endl;
+    LOG_IF_TRACE { clDEBUG1() << command << endl; }
 
     // push a callback
     m_completionCallbacks.push_back({ &clCodeLiteRemoteProcess::OnLocateOutput, nullptr });
@@ -430,7 +433,7 @@ void clCodeLiteRemoteProcess::FindPath(const wxString& path)
 
     wxString command = item.format(false);
     m_process->Write(command + "\n");
-    clDEBUG1() << command << endl;
+    LOG_IF_TRACE { clDEBUG1() << command << endl; }
 
     // push a callback
     m_completionCallbacks.push_back({ &clCodeLiteRemoteProcess::OnFindPathOutput, nullptr });
@@ -465,7 +468,7 @@ bool clCodeLiteRemoteProcess::DoExec(const wxString& cmd, const wxString& workin
 
     wxString command = item.format(false);
     m_process->Write(command + "\n");
-    clDEBUG1() << command << endl;
+    LOG_IF_TRACE { clDEBUG1() << command << endl; }
 
     // push a callback
     m_completionCallbacks.push_back({ &clCodeLiteRemoteProcess::OnExecOutput, handler });
@@ -544,7 +547,7 @@ void clCodeLiteRemoteProcess::OnListFilesOutput(const wxString& output, bool is_
 {
     clCommandEvent event(wxEVT_CODELITE_REMOTE_LIST_FILES);
 
-    clDEBUG1() << output << endl;
+    LOG_IF_TRACE { clDEBUG1() << output << endl; }
 
     // parse the output (line based)
     wxArrayString files = ::wxStringTokenize(output, "\r\n", wxTOKEN_STRTOK);
@@ -562,7 +565,7 @@ void clCodeLiteRemoteProcess::OnFindPathOutput(const wxString& output, bool is_c
     clCommandEvent event(wxEVT_CODELITE_REMOTE_FINDPATH);
 
     // parse the output
-    clDEBUG1() << "FindPath output: [" << output << "]" << endl;
+    LOG_IF_TRACE { clDEBUG1() << "FindPath output: [" << output << "]" << endl; }
     wxString fullpath = output;
     fullpath.Trim().Trim(false);
     event.SetString(fullpath);
@@ -579,7 +582,7 @@ void clCodeLiteRemoteProcess::OnLocateOutput(const wxString& output, bool is_com
     clCommandEvent event(wxEVT_CODELITE_REMOTE_LOCATE);
 
     // parse the output
-    clDEBUG1() << "Locate output: [" << output << "]" << endl;
+    LOG_IF_TRACE { clDEBUG1() << "Locate output: [" << output << "]" << endl; }
     wxString fullpath = output;
     fullpath.Trim().Trim(false);
     event.SetFileName(fullpath);
@@ -687,10 +690,11 @@ bool clCodeLiteRemoteProcess::SyncExec(const wxString& cmd, const wxString& work
 
     // read
     wxString buff_out, buff_err;
+    std::string raw_buff, raw_buff_err;
     m_outputRead.clear();
 
     wxString complete_output;
-    while(m_process->Read(buff_out, buff_err)) {
+    while(m_process->Read(buff_out, buff_err, raw_buff, raw_buff_err)) {
         m_outputRead << buff_out;
         size_t where = m_outputRead.find(msg_terminator);
         if(where == wxString::npos) {
@@ -699,7 +703,7 @@ bool clCodeLiteRemoteProcess::SyncExec(const wxString& cmd, const wxString& work
 
         // strip the terminator and make it our output
         *output = m_outputRead.Mid(0, where);
-        clDEBUG1() << "SyncExec(" << cmd << "):" << *output << endl;
+        LOG_IF_TRACE { clDEBUG1() << "SyncExec(" << cmd << "):" << *output << endl; }
 
         m_outputRead.clear();
         // resume the async nature of the process

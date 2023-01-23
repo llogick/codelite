@@ -1,3 +1,4 @@
+#include <string>
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -22,8 +23,6 @@
 //
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
-#include "fileutils.h"
-
 #include "StringUtils.h"
 #include "asyncprocess.h"
 #include "clConsoleBase.h"
@@ -31,6 +30,7 @@
 #include "cl_standard_paths.h"
 #include "dirsaver.h"
 #include "file_logger.h"
+#include "fileutils.h"
 #include "macros.h"
 #include "procutils.h"
 #include "wxStringHash.h"
@@ -74,7 +74,19 @@ bool write_file_content(const wxFileName& fn, const wxString& content, const wxM
     }
 }
 
+bool write_file_content_raw(const wxFileName& fn, const std::string& content)
+{
+    wxFile file(fn.GetFullPath(), wxFile::write);
+    if(file.IsOpened()) {
+        return file.Write((const void*)content.c_str(), content.length());
+    } else {
+        return false;
+    }
+}
+
+#ifndef __WXMSW__
 const char ELF_STR[] = { 0x7f, 'E', 'L', 'F' };
+#endif
 } // namespace
 
 void FileUtils::OpenFileExplorer(const wxString& path)
@@ -114,6 +126,19 @@ bool FileUtils::WriteFileContent(const wxFileName& fn, const wxString& content, 
     // make sure we erase the temp file
     FileUtils::Deleter d(tmpFile);
     if(!write_file_content(tmpFile, content, conv)) {
+        return false;
+    }
+
+    // rename tmp -> real file
+    return ::wxRenameFile(tmpFile.GetFullPath(), fn.GetFullPath(), true);
+}
+
+bool FileUtils::WriteFileContentRaw(const wxFileName& fn, const std::string& content)
+{
+    wxFileName tmpFile = CreateTempFileName(fn.GetPath(), "cltmp", fn.GetExt());
+    // make sure we erase the temp file
+    FileUtils::Deleter d(tmpFile);
+    if(!write_file_content_raw(tmpFile, content)) {
         return false;
     }
 
@@ -593,7 +618,7 @@ size_t FileUtils::SplitWords(const wxString& str, wxStringSet_t& outputSet, bool
 
 bool FileUtils::RemoveFile(const wxString& filename, const wxString& context)
 {
-    clDEBUG1() << "Deleting file:" << filename << "(" << context << ")";
+    LOG_IF_TRACE { clDEBUG1() << "Deleting file:" << filename << "(" << context << ")"; }
     wxLogNull NOLOG;
     return ::wxRemoveFile(filename);
 }
@@ -629,7 +654,7 @@ wxString FileUtils::RealPath(const wxString& filepath)
 {
 #if defined(__WXGTK__) || defined(__WXOSX__)
     if(!filepath.empty()) {
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) || defined(__WXOSX__)
         wxStructStat stbuff;
         if((::wxLstat(filepath, &stbuff) != 0) || !S_ISLNK(stbuff.st_mode)) {
             return filepath;

@@ -6,6 +6,7 @@
 #include "clThemedListCtrl.h"
 #include "codelite_events.h"
 #include "event_notifier.h"
+#include "globals.h"
 #include "macros.h"
 
 #include <wx/colordlg.h>
@@ -58,10 +59,10 @@ void clPropertiesPage::AddProperty(const wxString& label, const wxArrayString& c
     if(index == wxString::npos) {
         index = 0;
     }
-    AddProperty(label, choices, static_cast<int>(index), move(update_cb));
+    AddProperty(label, choices, static_cast<int>(index), std::move(update_cb));
 }
 
-void clPropertiesPage::AddProperty(const wxString& label, const vector<wxString>& choices, size_t sel,
+void clPropertiesPage::AddProperty(const wxString& label, const std::vector<wxString>& choices, size_t sel,
                                    clPropertiesPage::Callback_t update_cb)
 {
     wxArrayString arr;
@@ -69,18 +70,18 @@ void clPropertiesPage::AddProperty(const wxString& label, const vector<wxString>
     for(const auto& s : choices) {
         arr.Add(s);
     }
-    AddProperty(label, arr, sel, move(update_cb));
+    AddProperty(label, arr, sel, std::move(update_cb));
 }
 
-void clPropertiesPage::AddProperty(const wxString& label, const vector<wxString>& choices, const wxString& selection,
-                                   clPropertiesPage::Callback_t update_cb)
+void clPropertiesPage::AddProperty(const wxString& label, const std::vector<wxString>& choices,
+                                   const wxString& selection, clPropertiesPage::Callback_t update_cb)
 {
     wxArrayString arr;
     arr.reserve(choices.size());
     for(const auto& s : choices) {
         arr.Add(s);
     }
-    AddProperty(label, arr, selection, move(update_cb));
+    AddProperty(label, arr, selection, std::move(update_cb));
 }
 
 void clPropertiesPage::AddProperty(const wxString& label, const wxArrayString& choices, size_t sel,
@@ -95,7 +96,7 @@ void clPropertiesPage::AddProperty(const wxString& label, const wxArrayString& c
     v << choice;
     cols.push_back(v);
     m_view->AppendItem(cols);
-    UpdateLastLineData(LineKind::CHOICE, choices, move(update_cb));
+    UpdateLastLineData(LineKind::CHOICE, choices, std::move(update_cb));
 }
 
 void clPropertiesPage::AddProperty(const wxString& label, bool checked, clPropertiesPage::Callback_t update_cb)
@@ -108,7 +109,7 @@ void clPropertiesPage::AddProperty(const wxString& label, bool checked, clProper
     v << c;
     cols.push_back(v);
     m_view->AppendItem(cols);
-    UpdateLastLineData(LineKind::CHECKBOX, checked, move(update_cb));
+    UpdateLastLineData(LineKind::CHECKBOX, checked, std::move(update_cb));
 }
 
 void clPropertiesPage::AddProperty(const wxString& label, long value, clPropertiesPage::Callback_t update_cb)
@@ -121,7 +122,7 @@ void clPropertiesPage::AddProperty(const wxString& label, long value, clProperti
     v << c;
     cols.push_back(v);
     m_view->AppendItem(cols);
-    UpdateLastLineData(LineKind::INTEGER, value, move(update_cb));
+    UpdateLastLineData(LineKind::INTEGER, value, std::move(update_cb));
 }
 
 void clPropertiesPage::AddProperty(const wxString& label, const wxString& value, clPropertiesPage::Callback_t update_cb)
@@ -135,7 +136,7 @@ void clPropertiesPage::AddProperty(const wxString& label, const wxString& value,
     v << c;
     cols.push_back(v);
     m_view->AppendItem(cols);
-    UpdateLastLineData(LineKind::TEXT_EDIT, value, move(update_cb));
+    UpdateLastLineData(LineKind::TEXT_EDIT, value, std::move(update_cb));
 }
 
 void clPropertiesPage::AddProperty(const wxString& label, const wxColour& value, clPropertiesPage::Callback_t update_cb)
@@ -148,7 +149,7 @@ void clPropertiesPage::AddProperty(const wxString& label, const wxColour& value,
     v << c;
     cols.push_back(v);
     m_view->AppendItem(cols);
-    UpdateLastLineData(LineKind::COLOUR, value, move(update_cb));
+    UpdateLastLineData(LineKind::COLOUR, value, std::move(update_cb));
 }
 
 void clPropertiesPage::AddPropertyFilePicker(const wxString& label, const wxString& path,
@@ -163,7 +164,7 @@ void clPropertiesPage::AddPropertyFilePicker(const wxString& label, const wxStri
     v << c;
     cols.push_back(v);
     m_view->AppendItem(cols);
-    UpdateLastLineData(LineKind::FILE_PICKER, path, move(update_cb));
+    UpdateLastLineData(LineKind::FILE_PICKER, path, std::move(update_cb));
 }
 
 void clPropertiesPage::AddPropertyDirPicker(const wxString& label, const wxString& path,
@@ -178,7 +179,23 @@ void clPropertiesPage::AddPropertyDirPicker(const wxString& label, const wxStrin
     v << c;
     cols.push_back(v);
     m_view->AppendItem(cols);
-    UpdateLastLineData(LineKind::DIR_PICKER, path, move(update_cb));
+    UpdateLastLineData(LineKind::DIR_PICKER, path, std::move(update_cb));
+}
+
+void clPropertiesPage::AddPropertyLanguagePicker(const wxString& label, const wxArrayString& langs,
+                                                 clPropertiesPage::Callback_t update_cb)
+{
+    wxVector<wxVariant> cols;
+    cols.push_back(label);
+
+    // horizontal 3 dots symbol
+    wxString languages_str = wxJoin(langs, ';');
+    clDataViewTextWithButton c(languages_str, eCellButtonType::BT_ELLIPSIS, wxNOT_FOUND);
+    wxVariant v;
+    v << c;
+    cols.push_back(v);
+    m_view->AppendItem(cols);
+    UpdateLastLineData(LineKind::LANGUAGE_PICKER, languages_str, std::move(update_cb));
 }
 
 void clPropertiesPage::AddPropertyButton(const wxString& label, const wxString& button_label,
@@ -193,7 +210,7 @@ void clPropertiesPage::AddPropertyButton(const wxString& label, const wxString& 
     v << button;
     cols.push_back(v);
     m_view->AppendItem(cols);
-    UpdateLastLineData(LineKind::BUTTON, nullptr, move(update_cb));
+    UpdateLastLineData(LineKind::BUTTON, nullptr, std::move(update_cb));
 }
 
 void clPropertiesPage::AddHeader(const wxString& label)
@@ -241,6 +258,13 @@ void clPropertiesPage::OnActionButton(wxDataViewEvent& e)
         if(!data->value.GetAs(&path))
             return;
         ShowFilePicker(row, path);
+        break;
+    }
+    case LineKind::LANGUAGE_PICKER: {
+        wxString curlangs;
+        if(!data->value.GetAs(&curlangs))
+            return;
+        ShowLanguagePicker(row, curlangs);
         break;
     }
     case LineKind::DIR_PICKER: {
@@ -354,6 +378,26 @@ void clPropertiesPage::ShowDirPicker(size_t line, const wxString& path)
     v << c;
     m_view->SetValue(v, line, 1);
     UpdateLineData(line, LineKind::DIR_PICKER, new_path, nullptr);
+    // call the user callback for this change
+    NotifyChange(line);
+    SetModified();
+}
+
+void clPropertiesPage::ShowLanguagePicker(size_t line, const wxString& langs)
+{
+    wxArrayString selected;
+    if(!::clShowFileTypeSelectionDialog(wxGetTopLevelParent(this), wxStringTokenize(langs, ";", wxTOKEN_STRTOK),
+                                        &selected)) {
+        return;
+    }
+
+    // update the view
+    wxString new_label = wxJoin(selected, ';');
+    clDataViewTextWithButton c(new_label, eCellButtonType::BT_ELLIPSIS, wxNOT_FOUND);
+    wxVariant v;
+    v << c;
+    m_view->SetValue(v, line, 1);
+    UpdateLineData(line, LineKind::LANGUAGE_PICKER, new_label, nullptr);
     // call the user callback for this change
     NotifyChange(line);
     SetModified();
@@ -496,3 +540,12 @@ void clPropertiesPage::NotifyChange(size_t line)
 void clPropertiesPage::Finalize() { m_view->Commit(); }
 
 void clPropertiesPage::Begin() { m_view->Begin(); }
+
+void clPropertiesPage::Clear()
+{
+    CHECK_PTR_RET(m_view);
+    m_view->DeleteAllItems();
+    m_isModified = false;
+    m_header_rows.clear();
+    m_lines.clear();
+}

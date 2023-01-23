@@ -56,6 +56,18 @@
 #include <wx/wupdlock.h>
 #include <wx/xrc/xmlres.h>
 
+namespace
+{
+wxString create_platform_filepath(const wxString& fullpath)
+{
+#ifdef __WXMSW__
+    return fullpath.Lower();
+#else
+    return fullpath;
+#endif
+}
+} // namespace
+
 MainBook::MainBook(wxWindow* parent)
     : wxPanel(parent)
     , m_navBar(NULL)
@@ -433,45 +445,47 @@ void MainBook::GetAllEditors(clEditor::Vec_t& editors, size_t flags)
 
 int MainBook::FindEditorIndexByFullPath(const wxString& fullpath)
 {
-    wxString unixStyleFile(fullpath);
-#ifdef __WXMSW__
-    unixStyleFile.Replace(wxT("\\"), wxT("/"));
-#endif
+#ifdef __WXGTK__
     // On gtk either fileName or the editor filepath (or both) may be (or their paths contain) symlinks
     wxString fileNameDest = CLRealPath(fullpath);
+#endif
 
     for(size_t i = 0; i < m_book->GetPageCount(); i++) {
         clEditor* editor = dynamic_cast<clEditor*>(m_book->GetPage(i));
         if(editor) {
-            wxString unixStyleFile(CLRealPath(editor->GetFileName().GetFullPath()));
-            wxString nativeFile(unixStyleFile);
+            // are we a remote path?
+            if(editor->IsRemoteFile()) {
+                if(editor->GetRemoteData()->GetRemotePath() == fullpath ||
+                   editor->GetRemoteData()->GetLocalPath() == fullpath) {
+                    return i;
+                }
+            } else {
+                // local path
+                wxString unixStyleFile(CLRealPath(editor->GetFileName().GetFullPath()));
+                wxString nativeFile(unixStyleFile);
 #ifdef __WXMSW__
-            unixStyleFile.Replace(wxT("\\"), wxT("/"));
+                unixStyleFile.Replace(wxT("\\"), wxT("/"));
 #endif
 
-#ifndef __WXMSW__
-            // On Unix files are case sensitive
-            if(nativeFile.Cmp(fullpath) == 0 || unixStyleFile.Cmp(fullpath) == 0 ||
-               unixStyleFile.Cmp(fileNameDest) == 0)
+#ifdef __WXGTK__
+                // On Unix files are case sensitive
+                if(nativeFile.Cmp(fullpath) == 0 || unixStyleFile.Cmp(fullpath) == 0 ||
+                   unixStyleFile.Cmp(fileNameDest) == 0)
 #else
-            // Compare in no case sensitive manner
-            if(nativeFile.CmpNoCase(fullpath) == 0 || unixStyleFile.CmpNoCase(fullpath) == 0 ||
-               unixStyleFile.CmpNoCase(fileNameDest) == 0)
+                // Compare in no case sensitive manner
+                if(nativeFile.CmpNoCase(fullpath) == 0 || unixStyleFile.CmpNoCase(fullpath) == 0)
 #endif
-            {
-                return i;
-            }
+                {
+                    return i;
+                }
 
 #if defined(__WXGTK__)
-            // Try again, dereferencing the editor fpath
-            wxString editorDest = CLRealPath(unixStyleFile);
-            if(editorDest.Cmp(fullpath) == 0 || editorDest.Cmp(fileNameDest) == 0) {
-                return i;
-            }
+                // Try again, dereferencing the editor fpath
+                wxString editorDest = CLRealPath(unixStyleFile);
+                if(editorDest.Cmp(fullpath) == 0 || editorDest.Cmp(fileNameDest) == 0) {
+                    return i;
+                }
 #endif
-            // still no luck? try the remotepath
-            if(editor->GetRemotePathOrLocal() == fullpath) {
-                return i;
             }
         }
     }
@@ -806,8 +820,8 @@ void MainBook::ReloadExternallyModified(bool prompt)
             // unless it gets changed again
             editors[i]->SetEditorLastModifiedTime(diskTime);
 
-            // A last check: see if the content of the file has actually changed. This avoids unnecessary reload offers
-            // after e.g. git stash
+            // A last check: see if the content of the file has actually changed. This avoids unnecessary reload
+            // offers after e.g. git stash
             if(!CompareFileWithString(editors[i]->GetFileName().GetFullPath(), editors[i]->GetText())) {
                 files.push_back(std::make_pair(editors[i]->GetFileName(), !editors[i]->GetModify()));
                 editors[n++] = editors[i];
@@ -1439,10 +1453,11 @@ void MainBook::ShowNavigationDialog()
         return;
     }
 
-    NotebookNavigationDlg dlg(EventNotifier::Get()->TopFrame(), m_book);
-    if(dlg.ShowModal() == wxID_OK && dlg.GetSelection() != wxNOT_FOUND) {
-        m_book->SetSelection(dlg.GetSelection());
+    NotebookNavigationDlg* dlg = new NotebookNavigationDlg(EventNotifier::Get()->TopFrame(), m_book);
+    if(dlg->ShowModal() == wxID_OK && dlg->GetSelection() != wxNOT_FOUND) {
+        m_book->SetSelection(dlg->GetSelection());
     }
+    wxDELETE(dlg);
 }
 
 void MainBook::MovePage(bool movePageRight)
@@ -1743,9 +1758,10 @@ WelcomePage* MainBook::GetOrCreateWelcomePage()
 
 clEditor* MainBook::OpenFileAsync(const wxString& file_name, std::function<void(IEditor*)>&& callback)
 {
-    auto editor = FindEditor(file_name);
+    wxString real_path = CLRealPath(file_name);
+    auto editor = FindEditor(real_path);
     if(editor) {
-        push_callback(std::move(callback), file_name);
+        push_callback(std::move(callback), real_path);
         bool is_active = GetActiveEditor() == editor;
         if(!is_active) {
             // make this file the active
@@ -1753,40 +1769,43 @@ clEditor* MainBook::OpenFileAsync(const wxString& file_name, std::function<void(
             m_book->SetSelection(index);
         }
     } else {
-        editor = OpenFile(file_name);
+        editor = OpenFile(real_path);
         if(editor) {
-            push_callback(std::move(callback), file_name);
+            push_callback(std::move(callback), real_path);
         }
     }
     return editor;
 }
 
-void MainBook::push_callback(std::function<void(IEditor*)>&& callabck, const wxString& fullpath)
+void MainBook::push_callback(std::function<void(IEditor*)>&& callback, const wxString& fullpath)
 {
     // register a callback for this insert
-    if(m_callbacksTable.count(fullpath) == 0) {
-        m_callbacksTable.insert({ fullpath, {} });
+    wxString key = create_platform_filepath(fullpath);
+    if(m_callbacksTable.count(key) == 0) {
+        m_callbacksTable.insert({ key, {} });
     }
-    m_callbacksTable[fullpath].emplace_back(std::move(callabck));
+    m_callbacksTable[key].emplace_back(std::move(callback));
 }
 
 bool MainBook::has_callbacks(const wxString& fullpath) const
 {
-    return !m_callbacksTable.empty() && (m_callbacksTable.count(fullpath) > 0);
+    wxString key = create_platform_filepath(fullpath);
+    return !m_callbacksTable.empty() && (m_callbacksTable.count(key) > 0);
 }
 
 void MainBook::execute_callbacks_for_file(const wxString& fullpath)
 {
-    if(!has_callbacks(fullpath)) {
+    wxString key = create_platform_filepath(fullpath);
+    if(!has_callbacks(key)) {
         return;
     }
 
-    auto& V = m_callbacksTable[fullpath];
+    auto& V = m_callbacksTable[key];
     if(V.empty()) {
         return; // cant really happen
     }
 
-    IEditor* editor = FindEditor(fullpath);
+    IEditor* editor = FindEditor(key);
     CHECK_PTR_RET(editor);
 
     for(auto& callback : V) {
@@ -1794,7 +1813,7 @@ void MainBook::execute_callbacks_for_file(const wxString& fullpath)
     }
 
     // remove the callbacks
-    m_callbacksTable.erase(fullpath);
+    m_callbacksTable.erase(key);
 }
 
 void MainBook::OnIdle(wxIdleEvent& event)

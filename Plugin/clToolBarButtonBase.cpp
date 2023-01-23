@@ -2,11 +2,14 @@
 
 #include "clToolBar.h"
 #include "drawingutils.h"
+#include "file_logger.h"
+
+#include <wx/renderer.h>
 
 // -----------------------------------------------
 // Button base
 // -----------------------------------------------
-clToolBarButtonBase::clToolBarButtonBase(clToolBar* parent, wxWindowID id, int bmpId, const wxString& label,
+clToolBarButtonBase::clToolBarButtonBase(clToolBarGeneric* parent, wxWindowID id, int bmpId, const wxString& label,
                                          size_t flags)
     : m_toolbar(parent)
     , m_id(id)
@@ -35,7 +38,7 @@ void clToolBarButtonBase::Render(wxDC& dc, const wxRect& rect)
     wxColour penColour;
     wxColour buttonColour;
 
-    const wxColour bgColour = DrawingUtils::GetMenuBarBgColour(m_toolbar->HasFlag(clToolBar::kMiniToolBar));
+    const wxColour bgColour = DrawingUtils::GetMenuBarBgColour(m_toolbar->HasFlag(clToolBarGeneric::kMiniToolBar));
     bool isdark = DrawingUtils::IsDark(bgColour);
     if(IsEnabled() && (IsPressed() || IsChecked())) {
         wxColour pressBgColour = isdark ? bgColour.ChangeLightness(110) : bgColour.ChangeLightness(80);
@@ -107,7 +110,12 @@ void clToolBarButtonBase::Render(wxDC& dc, const wxRect& rect)
             dc.DrawLine(wxPoint(xx, m_buttonRect.GetY() + 2),
                         wxPoint(xx, m_buttonRect.GetY() + m_buttonRect.GetHeight() - 2));
         }
-        DrawingUtils::DrawDropDownArrow(m_toolbar, dc, m_dropDownArrowRect);
+
+        int flags = wxCONTROL_NONE;
+        if(!IsEnabled()) {
+            flags |= wxCONTROL_DISABLED;
+        }
+        DrawingUtils::DrawDropDownArrow(m_toolbar, dc, m_dropDownArrowRect, flags, textColour);
         xx += drop_down_button_width;
     }
 }

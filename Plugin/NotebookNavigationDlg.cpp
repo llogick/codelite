@@ -96,7 +96,14 @@ NotebookNavigationDlg::NotebookNavigationDlg(wxWindow* parent, Notebook* book)
 
 NotebookNavigationDlg::~NotebookNavigationDlg()
 {
+#if defined(__WXMSW__) || defined(__WXMAC__)
+    UnregisterHotKey(XRCID("tab-next-entry"));
+    UnregisterHotKey(XRCID("tab-prev-entry"));
+    wxTheApp->Unbind(wxEVT_HOTKEY, &NotebookNavigationDlg::OnHotKeyNext, this, XRCID("tab-next-entry"));
+    wxTheApp->Unbind(wxEVT_HOTKEY, &NotebookNavigationDlg::OnHotKeyPrev, this, XRCID("tab-prev-entry"));
+#else
     m_dvListCtrl->Unbind(wxEVT_KEY_DOWN, &NotebookNavigationDlg::OnKeyDown, this);
+#endif
     m_dvListCtrl->Unbind(wxEVT_DATAVIEW_ITEM_ACTIVATED, &NotebookNavigationDlg::OnItemActivated, this);
     m_dvListCtrl->Unbind(wxEVT_KEY_UP, &NotebookNavigationDlg::OnKeyUp, this);
 
@@ -108,7 +115,7 @@ NotebookNavigationDlg::~NotebookNavigationDlg()
 
 void NotebookNavigationDlg::CloseDialog()
 {
-    clDEBUG() << "NotebookNavigationDlg::CloseDialog" << endl;
+    LOG_IF_TRACE { clDEBUG1() << "NotebookNavigationDlg::CloseDialog" << endl; }
     wxDataViewItem selection = m_dvListCtrl->GetSelection();
     if(selection.IsOk()) {
         TabData* d = (TabData*)m_dvListCtrl->GetItemData(selection);
@@ -129,84 +136,103 @@ void NotebookNavigationDlg::FinalizeCtor()
 #ifdef __WXOSX__
     SetSize(wxSize(500, 300));
 #endif
-    CentreOnParent();
 
+#if defined(__WXMSW__) || defined(__WXMAC__)
+    RegisterHotKey(XRCID("tab-next-entry"), wxMOD_RAW_CONTROL, WXK_TAB);
+    RegisterHotKey(XRCID("tab-prev-entry"), wxMOD_RAW_CONTROL | wxMOD_SHIFT, WXK_TAB);
+    wxTheApp->Bind(wxEVT_HOTKEY, &NotebookNavigationDlg::OnHotKeyNext, this, XRCID("tab-next-entry"));
+    wxTheApp->Bind(wxEVT_HOTKEY, &NotebookNavigationDlg::OnHotKeyPrev, this, XRCID("tab-prev-entry"));
+#else
     m_dvListCtrl->Bind(wxEVT_KEY_DOWN, &NotebookNavigationDlg::OnKeyDown, this);
+#endif
     m_dvListCtrl->Bind(wxEVT_KEY_UP, &NotebookNavigationDlg::OnKeyUp, this);
     m_dvListCtrl->Bind(wxEVT_DATAVIEW_ITEM_ACTIVATED, &NotebookNavigationDlg::OnItemActivated, this);
 
-    m_dvListCtrl->CallAfter(&wxDataViewCtrl::SetFocus);
+    m_dvListCtrl->CallAfter(&clThemedListCtrl::SetFocus);
     WindowAttrManager::Load(this);
+    CentreOnParent();
 }
 
 void NotebookNavigationDlg::OnKeyDown(wxKeyEvent& event)
 {
-#ifdef __WXOSX__
-    if(event.GetKeyCode() == WXK_ESCAPE) {
-        CallAfter(&NotebookNavigationDlg::CloseDialog);
-    } else {
-        event.Skip();
-    }
-#else
-    if((event.GetKeyCode() == WXK_TAB) && (event.CmdDown() && event.ShiftDown())) {
-        // Navigate Up
-        wxDataViewItem item = m_dvListCtrl->GetSelection();
-        if(item.IsOk()) {
-            int row = m_dvListCtrl->ItemToRow(item);
-            if(row > 0) {
-                --row;
-                item = m_dvListCtrl->RowToItem(row);
-                m_dvListCtrl->Select(item);
-                m_dvListCtrl->EnsureVisible(item);
+    if((event.GetKeyCode() == WXK_TAB) && (event.RawControlDown() && event.ShiftDown())) {
+        SelectPrev();
 
-            } else {
-                // Select the last item
-                row = m_dvListCtrl->GetItemCount() - 1;
-                item = m_dvListCtrl->RowToItem(row);
-                m_dvListCtrl->Select(item);
-                m_dvListCtrl->EnsureVisible(item);
-            }
-        }
-    } else if((event.GetKeyCode() == WXK_TAB) && event.CmdDown()) {
-        // Navigate Down
-        wxDataViewItem item = m_dvListCtrl->GetSelection();
-        if(item.IsOk()) {
-            int row = m_dvListCtrl->ItemToRow(item);
-            if(row < (int)(m_dvListCtrl->GetItemCount() - 1)) {
-                ++row;
-                item = m_dvListCtrl->RowToItem(row);
-                m_dvListCtrl->Select(item);
-                m_dvListCtrl->EnsureVisible(item);
-            } else {
-                // Select the last item
-                item = m_dvListCtrl->RowToItem(0);
-                m_dvListCtrl->Select(item);
-                m_dvListCtrl->EnsureVisible(item);
-            }
-        }
+    } else if((event.GetKeyCode() == WXK_TAB) && event.RawControlDown()) {
+        SelectNext();
 
     } else {
         event.Skip();
     }
-#endif
 }
 
 void NotebookNavigationDlg::OnKeyUp(wxKeyEvent& event)
 {
-#ifdef __WXOSX__
-    event.Skip();
-#else
-    if(event.GetKeyCode() == WXK_CONTROL) {
+    // if CTRL key is down, dismiss the dialog
+    if(!wxGetKeyState(WXK_RAW_CONTROL)) {
         CloseDialog();
     } else {
         event.Skip();
     }
-#endif
 }
 
 void NotebookNavigationDlg::OnItemActivated(wxDataViewEvent& event)
 {
     event.Skip();
-    clDEBUG() << "NotebookNavigationDlg::OnItemActivated" << endl;
+    LOG_IF_TRACE { clDEBUG1() << "NotebookNavigationDlg::OnItemActivated" << endl; }
     CloseDialog();
+}
+
+void NotebookNavigationDlg::OnHotKeyNext(wxKeyEvent& event)
+{
+    wxUnusedVar(event);
+    SelectNext();
+}
+
+void NotebookNavigationDlg::OnHotKeyPrev(wxKeyEvent& event)
+{
+    wxUnusedVar(event);
+    SelectPrev();
+}
+
+void NotebookNavigationDlg::SelectNext()
+{
+    // Navigate Down
+    wxDataViewItem item = m_dvListCtrl->GetSelection();
+    if(item.IsOk()) {
+        int row = m_dvListCtrl->ItemToRow(item);
+        if(row < (int)(m_dvListCtrl->GetItemCount() - 1)) {
+            ++row;
+            item = m_dvListCtrl->RowToItem(row);
+            m_dvListCtrl->Select(item);
+            m_dvListCtrl->EnsureVisible(item);
+        } else {
+            // Select the last item
+            item = m_dvListCtrl->RowToItem(0);
+            m_dvListCtrl->Select(item);
+            m_dvListCtrl->EnsureVisible(item);
+        }
+    }
+}
+
+void NotebookNavigationDlg::SelectPrev()
+{
+    // Navigate Up
+    wxDataViewItem item = m_dvListCtrl->GetSelection();
+    if(item.IsOk()) {
+        int row = m_dvListCtrl->ItemToRow(item);
+        if(row > 0) {
+            --row;
+            item = m_dvListCtrl->RowToItem(row);
+            m_dvListCtrl->Select(item);
+            m_dvListCtrl->EnsureVisible(item);
+
+        } else {
+            // Select the last item
+            row = m_dvListCtrl->GetItemCount() - 1;
+            item = m_dvListCtrl->RowToItem(row);
+            m_dvListCtrl->Select(item);
+            m_dvListCtrl->EnsureVisible(item);
+        }
+    }
 }

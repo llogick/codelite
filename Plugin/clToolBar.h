@@ -4,16 +4,81 @@
 #include "bitmap_loader.h"
 #include "cl_command_event.h"
 #include "codelite_exports.h"
+#include "wxCustomControls.hpp"
 
 #include <unordered_map>
 #include <vector>
 #include <wx/menu.h>
 #include <wx/panel.h>
+#include <wx/toolbar.h>
 
 #define INVALID_BITMAP_ID wxString::npos
+#define USE_NATIVE_TOOLBAR 1
 
 class clToolBarButtonBase;
-class WXDLLIMPEXP_SDK clToolBar : public wxPanel
+#if wxUSE_NATIVE_TOOLBAR
+class WXDLLIMPEXP_SDK clToolBarNative : public wxToolBar
+{
+    clBitmapList* m_bitmaps = nullptr;
+    bool m_ownedBitmaps = false;
+
+public:
+    clToolBarNative(wxWindow* parent, wxWindowID winid = wxID_ANY, const wxPoint& pos = wxDefaultPosition,
+                    const wxSize& size = wxDefaultSize, long style = wxTAB_TRAVERSAL | wxNO_BORDER,
+                    const wxString& name = "clToolBarNative");
+    virtual ~clToolBarNative();
+    void SetMiniToolBar(bool) {}
+    wxToolBarToolBase* AddTool(wxWindowID id, const wxString& label, size_t bitmapIndex,
+                               const wxString& helpString = "", wxItemKind kind = wxITEM_NORMAL);
+    void AddSpacer() { AddSeparator(); }
+
+    wxToolBarToolBase* AddToggleButton(wxWindowID id, size_t bitmapIndex, const wxString& label = "")
+    {
+        return AddTool(id, label, bitmapIndex, wxEmptyString, wxITEM_CHECK);
+    }
+
+    wxToolBarToolBase* AddButton(wxWindowID id, size_t bitmapIndex, const wxString& label = "")
+    {
+        return AddTool(id, label, bitmapIndex, wxEmptyString, wxITEM_NORMAL);
+    }
+
+    bool DeleteById(wxWindowID toolId) { return DeleteTool(toolId); }
+
+    /**
+     * @brief return a pointer to the bitmaps list. Create one if no such bitmap list exists
+     */
+    clBitmapList* GetBitmapsCreateIfNeeded();
+    /**
+     * @brief set a bitmaps pointer. the caller is still the owner (i.e. he is responsible for deleting it)
+     * the pointer must be in scope as long as this class exists
+     */
+    void SetBitmaps(clBitmapList* bitmaps);
+
+    clBitmapList* GetBitmaps() const { return m_bitmaps; }
+
+    /**
+     * @brief assign bitmap list to the toolbar. the toolbar is the owner
+     */
+    void AssignBitmaps(clBitmapList* bitmaps);
+
+    const wxBitmap& GetBitmap(size_t index) const;
+
+    /**
+     * @brief show a drop down menu for a button
+     */
+    void ShowMenuForButton(wxWindowID buttonID, wxMenu* menu);
+
+    /**
+     * @brief display a menu for a button and return the user selected menu item ID
+     */
+    int GetMenuSelectionFromUser(wxWindowID buttonID, wxMenu* menu);
+
+    void SetGroupSpacing(int) {}
+    void EnableCustomisation(bool) {}
+};
+#endif
+
+class WXDLLIMPEXP_SDK clToolBarGeneric : public wxPanel
 {
 public:
     typedef std::vector<clToolBarButtonBase*> ToolVect_t;
@@ -54,14 +119,14 @@ protected:
     wxRect CalculateRect(wxDC& dc) const;
     void DoShowOverflowMenu();
     void PrepareForDrawings(wxDC& dc, std::vector<ToolVect_t>& G, const wxRect& rect);
-    void RenderGroup(int& xx, const clToolBar::ToolVect_t& G, wxDC& gcdc, bool isLastGroup);
+    void RenderGroup(int& xx, const clToolBarGeneric::ToolVect_t& G, wxDC& gcdc, bool isLastGroup);
     void OnColoursChanged(clCommandEvent& event);
 
 public:
-    clToolBar(wxWindow* parent, wxWindowID winid = wxID_ANY, const wxPoint& pos = wxDefaultPosition,
-              const wxSize& size = wxDefaultSize, long style = wxTAB_TRAVERSAL | wxNO_BORDER,
-              const wxString& name = "clToolBar");
-    virtual ~clToolBar();
+    clToolBarGeneric(wxWindow* parent, wxWindowID winid = wxID_ANY, const wxPoint& pos = wxDefaultPosition,
+                     const wxSize& size = wxDefaultSize, long style = wxTAB_TRAVERSAL | wxNO_BORDER,
+                     const wxString& name = "clToolBarGeneric");
+    virtual ~clToolBarGeneric();
 
     const wxBitmap& GetBitmap(size_t index) const;
 
@@ -212,4 +277,12 @@ public:
     bool DeleteTool(wxWindowID id) { return DeleteById(id); }
 };
 wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_SDK, wxEVT_TOOLBAR_CUSTOMISE, wxCommandEvent);
+
+#if !wxUSE_NATIVE_TOOLBAR
+// use the generic version, always
+typedef clToolBarGeneric clToolBar;
+typedef clToolBarGeneric clToolBarNative;
+#else
+typedef clToolBarGeneric clToolBar;
+#endif
 #endif // CLTOOLBAR_H

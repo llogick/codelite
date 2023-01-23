@@ -29,12 +29,12 @@
 #include "DiffConfig.h"
 #include "clDTL.h"
 #include "clPluginsFindBar.h"
+#include "clToolBar.h"
 #include "wxcrafter_plugin.h"
 
 #include <vector>
 #include <wx/filename.h>
 
-class clToolBar;
 class WXDLLIMPEXP_SDK DiffSideBySidePanel : public DiffSideBySidePanelBase
 {
     enum {
@@ -203,5 +203,10 @@ public:
      * @brief set whether to store the diff's filepaths for later reload
      */
     void SetSaveFilepaths(bool save) { m_storeFilepaths = save; }
+
+    /**
+     * @brief returns whether find bar has focus
+     */
+    bool HasFindBarFocus() const { return m_findBar->HasFocus(); }
 };
 #endif // DIFFSIDEBYSIDEPANEL_H

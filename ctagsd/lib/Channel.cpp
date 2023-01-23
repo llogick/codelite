@@ -19,12 +19,12 @@ ChannelSocket::~ChannelSocket() {}
 
 eReadSome ChannelSocket::read_some()
 {
-    wxString buffer;
     client->SelectRead();
-
-    switch(client->Read(buffer)) {
+    char buffer[1024 * 4];
+    size_t bytes_read = 0;
+    switch(client->Read(buffer, sizeof(buffer), bytes_read)) {
     case clSocketBase::kSuccess:
-        m_buffer.Append(buffer);
+        m_buffer.append(buffer, bytes_read);
         return eReadSome::kSuccess;
     case clSocketBase::kTimeout:
         return eReadSome::kTimeout;
@@ -52,7 +52,7 @@ bool ChannelSocket::write_reply(const wxString& message)
 
     // append the data
     s.append(cb.data(), cb.length());
-    clDEBUG1() << "Sending reply:" << s << endl;
+    LOG_IF_TRACE { clDEBUG1() << "Sending reply:" << s << endl; }
     client->Send(s);
     return true;
 }

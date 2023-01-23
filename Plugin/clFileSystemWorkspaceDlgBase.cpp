@@ -9,7 +9,19 @@
 // Declare the bitmap loading function
 extern void wxCB09InitBitmapResources();
 
-static bool bBitmapLoaded = false;
+namespace
+{
+// return the wxBORDER_SIMPLE that matches the current application theme
+wxBorder get_border_simple_theme_aware_bit()
+{
+#if wxVERSION_NUMBER >= 3300 && defined(__WXMSW__)
+    return wxSystemSettings::GetAppearance().IsDark() ? wxBORDER_SIMPLE : wxBORDER_STATIC;
+#else
+    return wxBORDER_DEFAULT;
+#endif
+} // DoGetBorderSimpleBit
+bool bBitmapLoaded = false;
+} // namespace
 
 clFileSystemWorkspaceDlgBase::clFileSystemWorkspaceDlgBase(wxWindow* parent, wxWindowID id, const wxString& title,
                                                            const wxPoint& pos, const wxSize& size, long style)
@@ -137,7 +149,7 @@ BuildTargetDlgBase::BuildTargetDlgBase(wxWindow* parent, wxWindowID id, const wx
 
     flexGridSizer56->Add(m_staticText62, 0, wxALL | wxALIGN_RIGHT | wxALIGN_TOP, WXC_FROM_DIP(5));
 
-    m_textCtrlValue = new wxStyledTextCtrl(this, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), 0);
+    m_textCtrlValue = new clThemedSTC(this, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(this, wxSize(-1, -1)), 0);
     // Configure the fold margin
     m_textCtrlValue->SetMarginType(4, wxSTC_MARGIN_SYMBOL);
     m_textCtrlValue->SetMarginMask(4, wxSTC_MASK_FOLDERS);
@@ -269,8 +281,8 @@ FSConfigPageBase::FSConfigPageBase(wxWindow* parent, wxWindowID id, const wxPoin
 
     flexGridSizer33->Add(boxSizer239, 1, wxEXPAND, WXC_FROM_DIP(5));
 
-    m_textCtrlWD = new wxTextCtrl(m_panelGeneral, wxID_ANY, wxT(""), wxDefaultPosition,
-                                  wxDLG_UNIT(m_panelGeneral, wxSize(-1, -1)), 0);
+    m_textCtrlWD = new clThemedTextCtrl(m_panelGeneral, wxID_ANY, wxT(""), wxDefaultPosition,
+                                        wxDLG_UNIT(m_panelGeneral, wxSize(-1, -1)), 0);
 #if wxVERSION_NUMBER >= 3000
     m_textCtrlWD->SetHint(wxT(""));
 #endif
@@ -288,7 +300,8 @@ FSConfigPageBase::FSConfigPageBase(wxWindow* parent, wxWindowID id, const wxPoin
     flexGridSizer33->Add(m_staticText113, 0, wxALL | wxALIGN_RIGHT | wxALIGN_TOP, WXC_FROM_DIP(5));
 
     m_textCtrlArgs =
-        new clThemedSTC(m_panelGeneral, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_panelGeneral, wxSize(-1, -1)), 0);
+        new clThemedSTC(m_panelGeneral, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_panelGeneral, wxSize(-1, -1)),
+                        wxTRANSPARENT_WINDOW | get_border_simple_theme_aware_bit());
     // Configure the fold margin
     m_textCtrlArgs->SetMarginType(4, wxSTC_MARGIN_SYMBOL);
     m_textCtrlArgs->SetMarginMask(4, wxSTC_MASK_FOLDERS);
@@ -333,8 +346,8 @@ FSConfigPageBase::FSConfigPageBase(wxWindow* parent, wxWindowID id, const wxPoin
 
     flexGridSizer33->Add(m_staticText35, 0, wxALL | wxALIGN_RIGHT | wxALIGN_CENTER_VERTICAL, WXC_FROM_DIP(5));
 
-    m_textCtrlFileExt = new wxTextCtrl(m_panelGeneral, wxID_ANY, wxT(""), wxDefaultPosition,
-                                       wxDLG_UNIT(m_panelGeneral, wxSize(-1, -1)), 0);
+    m_textCtrlFileExt = new clThemedTextCtrl(m_panelGeneral, wxID_ANY, wxT(""), wxDefaultPosition,
+                                             wxDLG_UNIT(m_panelGeneral, wxSize(-1, -1)), 0);
     m_textCtrlFileExt->SetToolTip(_("Set the file extensions to be parsed in this\nworkspace"));
 #if wxVERSION_NUMBER >= 3000
     m_textCtrlFileExt->SetHint(wxT(""));
@@ -347,8 +360,8 @@ FSConfigPageBase::FSConfigPageBase(wxWindow* parent, wxWindowID id, const wxPoin
 
     flexGridSizer33->Add(m_staticText187, 0, wxALL | wxALIGN_RIGHT | wxALIGN_CENTER_VERTICAL, WXC_FROM_DIP(5));
 
-    m_textCtrlExcludeFiles = new wxTextCtrl(m_panelGeneral, wxID_ANY, wxT(""), wxDefaultPosition,
-                                            wxDLG_UNIT(m_panelGeneral, wxSize(-1, -1)), 0);
+    m_textCtrlExcludeFiles = new clThemedTextCtrl(m_panelGeneral, wxID_ANY, wxT(""), wxDefaultPosition,
+                                                  wxDLG_UNIT(m_panelGeneral, wxSize(-1, -1)), 0);
     m_textCtrlExcludeFiles->SetToolTip(_("Files matching this pattern will not be\ndisplayed in the tree view"));
 #if wxVERSION_NUMBER >= 3000
     m_textCtrlExcludeFiles->SetHint(wxT(""));
@@ -365,8 +378,8 @@ FSConfigPageBase::FSConfigPageBase(wxWindow* parent, wxWindowID id, const wxPoin
 
     flexGridSizer33->Add(boxSizer209, 1, wxEXPAND, WXC_FROM_DIP(5));
 
-    m_textCtrlExcludePaths = new wxTextCtrl(m_panelGeneral, wxID_ANY, wxT(""), wxDefaultPosition,
-                                            wxDLG_UNIT(m_panelGeneral, wxSize(-1, -1)), 0);
+    m_textCtrlExcludePaths = new clThemedTextCtrl(m_panelGeneral, wxID_ANY, wxT(""), wxDefaultPosition,
+                                                  wxDLG_UNIT(m_panelGeneral, wxSize(-1, -1)), 0);
     m_textCtrlExcludePaths->SetToolTip(
         _("Add here list of paths to be ignored.\nThe path is expected to be relative to the root folder of the "
           "workspace\nIgnored paths will still be visible in the tree, but they will not be\nused in workspace "
@@ -495,8 +508,7 @@ FSConfigPageBase::FSConfigPageBase(wxWindow* parent, wxWindowID id, const wxPoin
 
     boxSizer263->Add(m_staticText265, 0, wxALL, WXC_FROM_DIP(5));
 
-    m_stcCommands =
-        new wxStyledTextCtrl(Debugger, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(Debugger, wxSize(-1, -1)), 0);
+    m_stcCommands = new clThemedSTC(Debugger, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(Debugger, wxSize(-1, -1)), 0);
     // Configure the fold margin
     m_stcCommands->SetMarginType(4, wxSTC_MARGIN_SYMBOL);
     m_stcCommands->SetMarginMask(4, wxSTC_MASK_FOLDERS);
@@ -550,8 +562,8 @@ FSConfigPageBase::FSConfigPageBase(wxWindow* parent, wxWindowID id, const wxPoin
 
     boxSizer22->Add(m_staticText26, 0, wxALL, WXC_FROM_DIP(5));
 
-    m_stcCCFlags = new wxStyledTextCtrl(m_panelCodeCompletion, wxID_ANY, wxDefaultPosition,
-                                        wxDLG_UNIT(m_panelCodeCompletion, wxSize(-1, -1)), 0);
+    m_stcCCFlags = new clThemedSTC(m_panelCodeCompletion, wxID_ANY, wxDefaultPosition,
+                                   wxDLG_UNIT(m_panelCodeCompletion, wxSize(-1, -1)), 0);
     // Configure the fold margin
     m_stcCCFlags->SetMarginType(4, wxSTC_MARGIN_SYMBOL);
     m_stcCCFlags->SetMarginMask(4, wxSTC_MASK_FOLDERS);
@@ -601,7 +613,7 @@ FSConfigPageBase::FSConfigPageBase(wxWindow* parent, wxWindowID id, const wxPoin
 
     boxSizer117->Add(m_staticText119, 0, wxALL, WXC_FROM_DIP(5));
 
-    m_stcEnv = new wxStyledTextCtrl(m_panelEnv, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_panelEnv, wxSize(-1, -1)), 0);
+    m_stcEnv = new clThemedSTC(m_panelEnv, wxID_ANY, wxDefaultPosition, wxDLG_UNIT(m_panelEnv, wxSize(-1, -1)), 0);
     // Configure the fold margin
     m_stcEnv->SetMarginType(4, wxSTC_MARGIN_SYMBOL);
     m_stcEnv->SetMarginMask(4, wxSTC_MASK_FOLDERS);

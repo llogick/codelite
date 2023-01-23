@@ -1,87 +1,35 @@
 #include "Message.h"
+
+#include "LSP/basic_types.h"
+#include "cl_standard_paths.h"
+#include "fileutils.h"
+
 #include <wx/tokenzr.h>
 
 namespace
 {
 #define HEADER_CONTENT_LENGTH "Content-Length"
 
-#define STATE_NORMAL 0
-#define STATE_DOUBLE_QUOTES 1
-#define STATE_ESCAPE 2
-
-/// Since clangd might return a binary characters it breaks the wxString conversion
-/// This means that the "Content-Lenght" value might point us into an invalid position
-/// inside the position (i.e. broken json mssage)
-/// So we dont rely on the header length, but instead we count the chars ourself
-int FindCompleteMessage(const wxString& jsonMsg, int startIndex)
+bool HasCompleteMessage(const std::string& inbuf, unsigned long content_legnth, unsigned long headers_size)
 {
-    if(jsonMsg[startIndex] != '{') {
-        return wxNOT_FOUND;
-    }
-    int depth = 1;
-    int msglen = 1; // skip the '{'
-    int state = STATE_NORMAL;
-    size_t strLen = jsonMsg.length();
-    for(size_t i = (startIndex + 1); i < strLen; ++i, ++msglen) {
-        wxChar ch = jsonMsg[i];
-        switch(state) {
-        case STATE_NORMAL:
-            switch(ch) {
-            case '{':
-            case '[':
-                ++depth;
-                break;
-            case ']':
-            case '}':
-                --depth;
-                if(depth == 0) {
-                    return (msglen + 1); // include this char
-                }
-                break;
-            case '"':
-                state = STATE_DOUBLE_QUOTES;
-                break;
-            default:
-                break;
-            }
-            break;
-        case STATE_DOUBLE_QUOTES:
-            switch(ch) {
-            case '\\':
-                state = STATE_ESCAPE;
-                break;
-            case '"':
-                state = STATE_NORMAL;
-                break;
-            default:
-                break;
-            }
-            break;
-        case STATE_ESCAPE:
-            switch(ch) {
-            default:
-                state = STATE_DOUBLE_QUOTES;
-                break;
-            }
-            break;
-        }
-    }
-    return wxNOT_FOUND;
+    return inbuf.length() >= (content_legnth + headers_size);
 }
 
-int ReadHeaders(const wxString& message, wxStringMap_t& headers)
+int ReadHeaders(const std::string& message, std::unordered_map<std::string, std::string>& headers)
 {
-    int where = message.Find("\r\n\r\n");
+    int where = message.find("\r\n\r\n");
     if(where == wxNOT_FOUND) {
         return wxNOT_FOUND;
     }
-    wxString headerSection = message.Mid(0, where); // excluding the "\r\n\r\n"
+
+    auto headerSection = message.substr(0, where); // excluding the "\r\n\r\n"
     wxArrayString lines = ::wxStringTokenize(headerSection, "\n", wxTOKEN_STRTOK);
     for(wxString& header : lines) {
         header.Trim().Trim(false);
         wxString name = header.BeforeFirst(':');
         wxString value = header.AfterFirst(':');
-        headers.insert({ name.Trim().Trim(false), value.Trim().Trim(false) });
+        headers.insert(
+            { name.Trim().Trim(false).mb_str(wxConvUTF8).data(), value.Trim().Trim(false).mb_str(wxConvUTF8).data() });
     }
 
     // return the headers section + the separator
@@ -108,37 +56,69 @@ int LSP::Message::GetNextID()
     return ++requestId;
 }
 
-std::unique_ptr<JSON> LSP::Message::GetJSONPayload(wxString& network_buffer)
+std::unique_ptr<JSON> LSP::Message::GetJSONPayload(std::string& network_buffer)
 {
     // Strip the headers
-    wxStringMap_t headers;
+    std::unordered_map<std::string, std::string> headers;
     int headersSize = ReadHeaders(network_buffer, headers);
     if(headersSize == wxNOT_FOUND) {
+        LSP_WARNING() << "Unable to read headers from buffer:" << endl;
+        LSP_WARNING() << network_buffer << endl;
         return nullptr;
     }
 
     if(headers.count(HEADER_CONTENT_LENGTH) == 0) {
+        LSP_WARNING() << "LSP message header does not contain the Content-Length header!" << endl;
         return nullptr;
     }
 
-    int msglen = FindCompleteMessage(network_buffer, headersSize);
-    if(msglen == wxNOT_FOUND) {
+    unsigned long contentLength = 0;
+    wxString contentLengthValue = headers[HEADER_CONTENT_LENGTH];
+    if(!contentLengthValue.ToCULong(&contentLength)) {
+        LSP_WARNING() << "Failed to convert Content-Length header to number" << endl;
+        LSP_WARNING() << "Content-Length:" << headers[HEADER_CONTENT_LENGTH] << endl;
         return nullptr;
     }
 
-    if((headersSize + msglen) > (int)network_buffer.length()) {
+    if(!HasCompleteMessage(network_buffer, contentLength, headersSize)) {
+        LSP_DEBUG() << "Input buffer is too small" << endl;
         return nullptr;
     }
-    wxString json_str = network_buffer.Mid(0, headersSize + msglen);
 
-    // Remove the message from the network buffer
-    network_buffer.Remove(0, headersSize + msglen);
+    // remove the header part
+    network_buffer.erase(0, headersSize);
 
-    // remove the headers section from the message and construct a JSON object
-    json_str.Remove(0, headersSize);
+    // remove the payload
+    auto payload = network_buffer.substr(0, contentLength);
+    network_buffer.erase(0, contentLength);
+
+    // convert payload to wxString
+    wxString json_str = wxString::FromUTF8(payload);
+
+    if(json_str.length() != payload.length()) {
+        LSP_DEBUG() << "UTF8 chars detected" << endl;
+        LSP_DEBUG() << "wx.length()=" << json_str.length() << endl;
+        LSP_DEBUG() << "c.length()=" << payload.length() << endl;
+        LSP_DEBUG() << HEADER_CONTENT_LENGTH << contentLength << endl;
+    }
+
+    if(!json_str.EndsWith("}")) {
+        LSP_WARNING() << "JSON payload does not end with '}'" << endl;
+
+        // for debugging purposes, dump the content
+        auto wxfile = FileUtils::CreateTempFileName(clStandardPaths::Get().GetTempDir(), "wx", "json");
+        FileUtils::WriteFileContent(wxfile, json_str);
+        LSP_WARNING() << "wx-content written into:" << wxfile << endl;
+
+        auto cfile = FileUtils::CreateTempFileName(clStandardPaths::Get().GetTempDir(), "cfile", "json");
+        FileUtils::WriteFileContentRaw(cfile, payload);
+        LSP_WARNING() << "c-content written into:" << cfile << endl;
+    }
+
     std::unique_ptr<JSON> json(new JSON(json_str));
-    if(json->isOk()) {
+    if(!json->isOk()) {
+        LSP_ERROR() << "Unable to parse JSON object from response!" << endl;
         return json;
     }
-    return nullptr;
+    return json;
 }

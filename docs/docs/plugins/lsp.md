@@ -13,9 +13,18 @@ select the ones you are interested in and then [configure them in CodeLite][14]
     `clangd` is the LSP implementation from the `clang` for `C/C++/Objective-C` team. It provide a compiler level completion with an unmatched accuracy.
     Visit the [project home page][7]
 
+    **All**
+
+    `clangd` relies on a file named `compile_commands.json` or `compile_flags.txt`. When using CodeLite default C++ workspace
+    CodeLite can generate this file for the current workspace:
+
+    1. From the menu bar: `Settings` &#8594; `Code Completion ...`
+    2. Select the option `Generate compile_commands.json file`
+    3. Build your project
+
     **Windows**
 
-    On Windows, CodeLite comes with a pre built binary of `clangd` configured and installed.
+    Install `clangd` by install the recommended packages as [described here][15]
 
     ** Linux **
 
@@ -58,7 +67,7 @@ select the ones you are interested in and then [configure them in CodeLite][14]
     On Windows / MSYS2, use this command:
 
     ```bash
-    pacman -S mingw-w64-x86_64-python mingw-w64-x86_64-python-pip mingw-w64-x86_64-python-ujson
+    pacman -S mingw-w64-clang-x86_64-python mingw-w64-clang-x86_64-python-pip mingw-w64-clang-x86_64-python-ujson
     pip install python-lsp-server
     ```
 
@@ -88,10 +97,15 @@ select the ones you are interested in and then [configure them in CodeLite][14]
             rustup update
             rustup +nightly component add rust-src rust-analyzer-preview
             ```
-        - On `Windows`:
-            ```batch
-            %USERPROFILE%\.cargo\bin\rustup update
-            %USERPROFILE%\.cargo\bin\rustup +nightly component add rust-src rust-analyzer-preview
+        - On `Windows`, we build it from sources. Open `MSYS2` terminal and type:
+
+            ```bash
+            cd ~
+            git clone https://github.com/rust-lang/rust-analyzer.git
+            cd rust-analyzer
+            cargo build --release \
+                && mkdir -p ~/.cargo/bin \
+                && cp target/release/rust-analyzer.exe target/release/rust-analyzer-proc-macro-srv.exe ~/.cargo/bin
             ```
 
     You should now have `rust-analyzer` installed under `rustup` local folder, for example, under `Linux` or `macOS`,
@@ -208,3 +222,4 @@ this way, after running `cmake`, you will get an up-to-date `compile_commands.js
 [12]: #manual-configuration
 [13]: /misc/install_rust
 [14]: #automatic-detection
+[15]: /getting_started/windows/#common

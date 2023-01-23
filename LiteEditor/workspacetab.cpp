@@ -22,6 +22,8 @@
 //
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
+#include "workspacetab.h"
+
 #include "DefaultWorkspacePage.h"
 #include "clFileOrFolderDropTarget.h"
 #include "clToolBarButtonBase.h"
@@ -40,7 +42,7 @@
 #include "pluginmanager.h"
 #include "project_settings_dlg.h"
 #include "workspace_pane.h"
-#include "workspacetab.h"
+
 #include <algorithm>
 #include <wx/button.h>
 #include <wx/combobox.h>
@@ -62,9 +64,6 @@ WorkspaceTab::WorkspaceTab(wxWindow* parent, const wxString& caption)
     , m_dlg(NULL)
     , m_view(NULL)
 {
-    SetBackgroundStyle(wxBG_STYLE_PAINT);
-    m_panelCxx->SetBackgroundStyle(wxBG_STYLE_PAINT);
-
     long link = EditorConfigST::Get()->GetInteger(wxT("LinkWorkspaceViewToEditor"), 1);
     m_isLinkedToEditor = link ? true : false;
 
@@ -73,18 +72,6 @@ WorkspaceTab::WorkspaceTab(wxWindow* parent, const wxString& caption)
     SetDropTarget(new clFileOrFolderDropTarget(this));
     Bind(wxEVT_DND_FOLDER_DROPPED, &WorkspaceTab::OnFolderDropped, this);
 
-    m_panelCxx->Bind(wxEVT_PAINT, [&](wxPaintEvent& e) {
-        wxAutoBufferedPaintDC dc(m_panelCxx);
-        dc.SetBrush(clSystemSettings::GetDefaultPanelColour());
-        dc.SetPen(clSystemSettings::GetDefaultPanelColour());
-        dc.DrawRectangle(m_panelCxx->GetClientRect());
-    });
-
-    EventNotifier::Get()->Bind(wxEVT_SYS_COLOURS_CHANGED, [&](clCommandEvent& event) {
-        event.Skip();
-        Refresh();
-        m_panelCxx->Refresh();
-    });
     m_bitmaps.push_back(clGetManager()->GetStdIcons()->LoadBitmap("project"));
     m_dvListCtrlPinnedProjects->SetBitmaps(&m_bitmaps);
 }
@@ -149,11 +136,6 @@ void WorkspaceTab::CreateGUIControls()
                           _("Open selected project settings. If there is no project selected, open the parent project "
                             "of the selected item in the tree"),
                           images->Add("cog"));
-    m_toolbar580->AddSpacer();
-    m_toolbar580->AddTool(XRCID("ID_BUILD_PROJECT"), _("Build Active Project"), images->Add("build"),
-                          _("Build Active Project"), wxITEM_DROPDOWN);
-    m_toolbar580->AddTool(XRCID("ID_EXECUTE_NO_DEBUG"), _("Run Active Project"), images->Add("execute"),
-                          _("Run Active Project"));
     m_toolbar580->Realize();
 }
 
@@ -443,14 +425,6 @@ void WorkspaceTab::OnFolderDropped(clCommandEvent& event)
     m_fileView->CallAfter(&FileViewTree::FolderDropped, event.GetStrings());
 }
 
-void WorkspaceTab::OnPaint(wxPaintEvent& event)
-{
-    wxAutoBufferedPaintDC dc(this);
-    dc.SetBrush(clSystemSettings::GetDefaultPanelColour());
-    dc.SetPen(clSystemSettings::GetDefaultPanelColour());
-    dc.DrawRectangle(GetClientRect());
-}
-
 void WorkspaceTab::LoadCxxPinnedProjects()
 {
     m_cxxPinnedProjects.clear();
@@ -560,26 +534,12 @@ void WorkspaceTab::OnBuildStarted(clBuildEvent& event)
 {
     event.Skip();
     m_buildInProgress = true;
-    auto button = m_toolbar580->FindById(XRCID("ID_BUILD_PROJECT"));
-    auto images = m_toolbar580->GetBitmapsCreateIfNeeded();
-    if(button) {
-        button->SetBitmapIndex(images->Add("stop"));
-        button->SetLabel(_("Stop Current Build"));
-        m_toolbar580->Refresh();
-    }
 }
 
 void WorkspaceTab::OnBuildEnded(clBuildEvent& event)
 {
     event.Skip();
     m_buildInProgress = false;
-    auto button = m_toolbar580->FindById(XRCID("ID_BUILD_PROJECT"));
-    auto images = m_toolbar580->GetBitmapsCreateIfNeeded();
-    if(button) {
-        button->SetBitmapIndex(images->Add("build"));
-        button->SetLabel(_("Build Active Project"));
-        m_toolbar580->Refresh();
-    }
 }
 
 void WorkspaceTab::OnBuildActiveProject(wxCommandEvent& event)
@@ -624,24 +584,10 @@ void WorkspaceTab::OnProgramStarted(clExecuteEvent& event)
 {
     event.Skip();
     m_runInProgress = true;
-    auto button = m_toolbar580->FindById(XRCID("ID_EXECUTE_NO_DEBUG"));
-    auto images = m_toolbar580->GetBitmapsCreateIfNeeded();
-    if(button) {
-        button->SetBitmapIndex(images->Add("stop"));
-        button->SetLabel(_("Stop running program"));
-        m_toolbar580->Refresh();
-    }
 }
 
 void WorkspaceTab::OnProgramStopped(clExecuteEvent& event)
 {
     event.Skip();
     m_runInProgress = false;
-    auto button = m_toolbar580->FindById(XRCID("ID_EXECUTE_NO_DEBUG"));
-    auto images = m_toolbar580->GetBitmapsCreateIfNeeded();
-    if(button) {
-        button->SetBitmapIndex(images->Add("execute"));
-        button->SetLabel(_("Run active project"));
-        m_toolbar580->Refresh();
-    }
 }

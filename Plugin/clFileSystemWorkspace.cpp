@@ -142,7 +142,8 @@ clFileSystemWorkspace::~clFileSystemWorkspace()
 
 wxString clFileSystemWorkspace::GetActiveProjectName() const { return ""; }
 
-wxFileName clFileSystemWorkspace::GetFileName() const { return m_filename; }
+wxString clFileSystemWorkspace::GetFileName() const { return m_filename.GetFullPath(); }
+wxString clFileSystemWorkspace::GetDir() const { return m_filename.GetPath(); }
 
 wxString clFileSystemWorkspace::GetFilesMask() const
 {
@@ -222,7 +223,7 @@ void clFileSystemWorkspace::CacheFiles(bool force)
             event.SetPaths(arrfiles);
             EventNotifier::Get()->QueueEvent(event.Clone());
         },
-        GetFileName().GetPath());
+        GetDir());
     thr.detach();
 }
 
@@ -308,7 +309,7 @@ void clFileSystemWorkspace::DoOpen()
     frame->GetEventHandler()->ProcessEvent(eventCloseWsp);
 
     // set the working directory to the workspace view
-    ::wxSetWorkingDirectory(GetFileName().GetPath());
+    ::wxSetWorkingDirectory(GetDir());
 
     // Create the symbols db file
     wxFileName fnFolder(GetFileName());
@@ -323,7 +324,7 @@ void clFileSystemWorkspace::DoOpen()
     }
 
     // load the new cache
-    m_backtickCache.reset(new clBacktickCache(GetFileName().GetPath()));
+    m_backtickCache.reset(new clBacktickCache(GetDir()));
 
     // Init the view
     GetView()->Clear();
@@ -335,7 +336,7 @@ void clFileSystemWorkspace::DoOpen()
     }
 
     // And now load the main folder
-    GetView()->AddFolder(GetFileName().GetPath());
+    GetView()->AddFolder(GetDir());
 
     // Notify CodeLite that this workspace is opened
     clGetManager()->GetWorkspaceView()->SelectPage(GetWorkspaceType());
@@ -343,8 +344,8 @@ void clFileSystemWorkspace::DoOpen()
 
     // Notify that the a new workspace is loaded
     clWorkspaceEvent event(wxEVT_WORKSPACE_LOADED);
-    event.SetString(GetFileName().GetFullPath());
-    event.SetFileName(GetFileName().GetFullPath());
+    event.SetString(GetFileName());
+    event.SetFileName(GetFileName());
     EventNotifier::Get()->AddPendingEvent(event);
 
     // Update the build configurations button
@@ -442,6 +443,10 @@ void clFileSystemWorkspace::OnScanCompleted(clFileSystemEvent& event)
 
     // Trigger a non full reparse
     Parse(false);
+
+    clDEBUG() << "Sending wxEVT_WORKSPACE_FILES_SCANNED event..." << endl;
+    clWorkspaceEvent event_scan{ wxEVT_WORKSPACE_FILES_SCANNED };
+    EventNotifier::Get()->ProcessEvent(event_scan);
 }
 
 void clFileSystemWorkspace::OnParseWorkspace(wxCommandEvent& event)
@@ -460,7 +465,7 @@ void clFileSystemWorkspace::Parse(bool fullParse)
     }
 
     if(fullParse) {
-        TagsManagerST::Get()->ParseWorkspaceFull(GetFileName().GetPath());
+        TagsManagerST::Get()->ParseWorkspaceFull(GetDir());
     } else {
         TagsManagerST::Get()->ParseWorkspaceIncremental();
     }
@@ -565,6 +570,7 @@ void clFileSystemWorkspace::OnExecute(clExecuteEvent& event)
     console->SetWaitWhenDone(true);
     console->SetSink(this);
     console->SetEnvironment(envList);
+    console->SetTerminalNeeded(true);
 
     if(console->Start()) {
         m_execPID = console->GetPid();
@@ -741,7 +747,7 @@ void clFileSystemWorkspace::DoBuild(const wxString& target)
 
     // Start the process with the environemt
     wxString ssh_account;
-    wxString wd = GetFileName().GetPath();
+    wxString wd = GetDir();
 
     // make changes if SSH is enabled here
     if(flags & IProcessCreateSSH) {
@@ -811,7 +817,7 @@ void clFileSystemWorkspace::DoCreate(const wxString& name, const wxString& path,
     }
 
     // If an workspace is opened and it is the same one as this, dont do nothing
-    if(m_isLoaded && (GetFileName() == fn)) {
+    if(m_isLoaded && (GetFileName() == fn.GetFullPath())) {
         return;
     }
 
@@ -872,7 +878,7 @@ void clFileSystemWorkspace::OnFileSaved(clCommandEvent& event)
             managedBySftp = true;
         }
 
-        wxString rootPath = GetFileName().GetPath();
+        wxString rootPath = GetDir();
         wxString filePath = wxFileName(filename).GetPath();
         bool doRemoteSave = filePath.StartsWith(rootPath) && !managedBySftp;
 
@@ -883,7 +889,7 @@ void clFileSystemWorkspace::OnFileSaved(clCommandEvent& event)
 
             // Make the local file path relative to the workspace location
             wxFileName fnLocalFile(event.GetFileName());
-            fnLocalFile.MakeRelativeTo(GetFileName().GetPath());
+            fnLocalFile.MakeRelativeTo(GetDir());
 
             remoteFilePath = fnLocalFile.GetFullPath(wxPATH_UNIX);
             remoteFilePath.Prepend(remotePath + "/");
@@ -1012,7 +1018,7 @@ void clFileSystemWorkspace::GetExecutable(wxString& exe, wxString& args, wxStrin
 {
     exe = GetConfig()->GetExecutable();
     args = GetConfig()->GetArgs();
-    wd = GetConfig()->GetWorkingDirectory().IsEmpty() ? GetFileName().GetPath() : GetConfig()->GetWorkingDirectory();
+    wd = GetConfig()->GetWorkingDirectory().IsEmpty() ? GetDir() : GetConfig()->GetWorkingDirectory();
 
     // build the arguments
     args.Replace("\r", wxEmptyString);
@@ -1170,4 +1176,15 @@ wxString clFileSystemWorkspace::GetDebuggerName() const
     } else {
         return wxEmptyString;
     }
+}
+
+clEnvList_t clFileSystemWorkspace::GetEnvironment() const
+{
+    clEnvList_t env_list;
+    auto config = clFileSystemWorkspace::Get().GetSettings().GetSelectedConfig();
+    if(config) {
+        const wxString& envstr = config->GetEnvironment();
+        env_list = StringUtils::BuildEnvFromString(envstr);
+    }
+    return env_list;
 }

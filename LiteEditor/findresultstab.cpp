@@ -116,62 +116,13 @@ void FindResultsTab::Clear()
 
 void FindResultsTab::OnFindInFiles(wxCommandEvent& e)
 {
+    wxUnusedVar(e);
     if(m_searchInProgress) {
         ::wxMessageBox(_("Another search is currently running, try again later"), _("CodeLite"),
                        wxICON_WARNING | wxOK | wxOK_DEFAULT);
         return;
     }
-
-    // Fire the wxEVT_CMD_FIND_IN_FILES_SHOWING showing event
-    clFindInFilesEvent eventFifShowing(wxEVT_FINDINFILES_DLG_SHOWING);
-    if(EventNotifier::Get()->ProcessEvent(eventFifShowing))
-        return;
-
-    // Display the Find In Files dialog
-    FindReplaceData frd;
-    frd.SetName("FindInFilesData");
-    clConfig::Get().ReadItem(&frd);
-
-    // Allocate the 'Find In Files' in an inner block
-    // We do this because the 'FindReplaceData' will be updated upon the destruction of the dialog
-    {
-        bool sendDismissEvent = true;
-        const wxString& mask = eventFifShowing.GetFileMask();
-
-        // plugins provided paths
-        const wxString& paths = eventFifShowing.GetPaths();
-
-        // transient paths take precedence over the normal paths. However, they are not persistent
-        // Usually these paths are given when the a tree view like control has focus and user selected folders in it
-        const wxString& transientPaths = eventFifShowing.GetTransientPaths();
-
-        wxString fifPaths = paths;
-        if(!transientPaths.IsEmpty()) {
-            fifPaths = transientPaths;
-            sendDismissEvent = false;
-        }
-
-        // Prepare the fif dialog
-        FindInFilesDialog dlg(EventNotifier::Get()->TopFrame(), frd);
-        if(!fifPaths.IsEmpty()) {
-            dlg.SetSearchPaths(fifPaths, !transientPaths.IsEmpty());
-        }
-
-        if(!mask.IsEmpty()) {
-            dlg.SetFileMask(mask);
-        }
-
-        // Show it
-        if((dlg.ShowDialog() == wxID_OK) && sendDismissEvent) {
-            // Notify about the dialog dismissal
-            clFindInFilesEvent eventDismiss(wxEVT_FINDINFILES_DLG_DISMISSED);
-            eventDismiss.SetFileMask(frd.GetSelectedMask());
-            eventDismiss.SetPaths(frd.GetWhere());
-            EventNotifier::Get()->ProcessEvent(eventDismiss);
-        }
-    }
-    // And we alway store the global find-in-files data (it keeps the 'find-what', 'replace with' fields, etc...)
-    clConfig::Get().WriteItem(&frd);
+    clGetManager()->OpenFindInFileForPaths({});
 }
 
 void FindResultsTab::OnSearchStart(wxCommandEvent& e)
@@ -246,7 +197,7 @@ void FindResultsTab::OnSearchEnded(wxCommandEvent& e)
     // did the page closed before the search ended?
     AppendLine(summary->GetMessage() + wxT("\n"));
 
-    if(m_tb->FindById(XRCID("scroll_on_output")) && m_tb->FindById(XRCID("scroll_on_output"))->IsChecked()) {
+    if(m_tb->FindById(XRCID("scroll_on_output")) && m_tb->FindById(XRCID("scroll_on_output"))->IsToggled()) {
         m_sci->GotoLine(0);
     }
 
@@ -505,7 +456,7 @@ void FindResultsTab::OnRecentSearches(wxCommandEvent& e)
         ++counter;
     });
 
-    clToolBarButtonBase* button = m_tb->FindById(e.GetId());
+    auto button = m_tb->FindById(e.GetId());
     CHECK_PTR_RET(button);
 
     menu.AppendSeparator();

@@ -25,9 +25,6 @@
 #include <wx/font.h>
 #include <wx/stc/stc.h>
 
-static int SCROLLBAR_WIDTH = 12;
-static int BOX_WIDTH = 800 + SCROLLBAR_WIDTH;
-
 wxCodeCompletionBox::BmpVec_t wxCodeCompletionBox::m_defaultBitmaps;
 thread_local bool strip_html_tags = false;
 
@@ -39,6 +36,7 @@ wxCodeCompletionBox::wxCodeCompletionBox(wxWindow* parent, wxEvtHandler* eventOb
     , m_tipWindow(NULL)
     , m_flags(flags)
 {
+    MSWSetWindowDarkTheme(this);
     // Use the active editor's font (if any)
     wxColour bgColour;
     wxColour textColour;
@@ -57,7 +55,6 @@ wxCodeCompletionBox::wxCodeCompletionBox(wxWindow* parent, wxEvtHandler* eventOb
     // bool isDark = DrawingUtils::IsDark(bgColour);
     clColours colours;
     colours.InitFromColour(bgColour);
-    const auto& prop = lexer->GetProperty(SEL_TEXT_ATTR_ID);
     colours.SetSelItemBgColour(clSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHT));
     colours.SetSelItemTextColour(clSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHTTEXT));
     colours.SetSelItemBgColourNoFocus(colours.GetSelItemBgColour());
@@ -72,8 +69,6 @@ wxCodeCompletionBox::wxCodeCompletionBox(wxWindow* parent, wxEvtHandler* eventOb
     m_list->SetRendererType(eRendererType::RENDERER_DIRECT2D);
     m_list->SetColours(colours);
     m_list->SetDefaultFont(m_ccFont);
-    // m_list->SetNeverShowScrollBar(wxHORIZONTAL, true);
-    m_list->SetTreeStyle(m_list->GetTreeStyle() | wxTR_FULL_ROW_HIGHLIGHT);
 
     // Calculate a suitable completion dialog width
     {
@@ -535,7 +530,6 @@ void wxCodeCompletionBox::StcKeyDown(wxKeyEvent& event)
     case WXK_ALT:
     case WXK_WINDOWS_LEFT:
     case WXK_WINDOWS_RIGHT:
-    case WXK_CONTROL:
         DoDestroy();
         event.Skip();
         break;
@@ -546,9 +540,22 @@ void wxCodeCompletionBox::StcKeyDown(wxKeyEvent& event)
         InsertSelection();
         DoDestroy();
         break;
-    default:
-        event.Skip();
+    default: {
+        int modifier_key = event.GetModifiers();
+        wxChar ch = event.GetUnicodeKey();
+        if (modifier_key == wxMOD_CONTROL && ch == 'U') {
+            m_list->PageUp();
+        } else if (modifier_key == wxMOD_CONTROL && ch == 'D') {
+            m_list->PageDown();
+        } else if (modifier_key == wxMOD_CONTROL && (ch == 'J' || ch == 'N')) {
+            m_list->LineDown();
+        }  else if (modifier_key == wxMOD_CONTROL && (ch == 'K' || ch == 'P')) {
+            m_list->LineUp();
+        } else {
+            event.Skip();
+        }
         break;
+    }
     }
 }
 

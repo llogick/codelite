@@ -1,6 +1,7 @@
 #include "RemotyWorkspace.hpp"
 
 #include "JSON.h"
+#include "Platform.hpp"
 #include "RemotyConfig.hpp"
 #include "RemotyNewWorkspaceDlg.h"
 #include "RemotySwitchToWorkspaceDlg.h"
@@ -27,7 +28,9 @@
 #include "macros.h"
 #include "open_resource_dialog.h"
 #include "processreaderthread.h"
+#include "sample_codelite_remote_json.cpp"
 #include "shell_command.h"
+#include "wxStringHash.h"
 
 #include <wx/msgdlg.h>
 #include <wx/stc/stc.h>
@@ -46,32 +49,9 @@
 
 namespace
 {
-static const char* CONTEXT_BUILDER = "builder";
-static const char* CONTEXT_FINDER = "finder";
-
-const wxString DEFAULT_CODELITE_REMOTE_JSON = R"EOF({
- "Language Server Plugin": {
-  "servers": [{
-    "name": "clangd",
-    "command": "/usr/bin/clangd -limit-results=500 -header-insertion-decorators=1",
-    "languages": ["c", "cpp"],
-    "priority": 90,
-    "working_directory": "",
-    "env": []
-   }, {
-    "name": "python",
-    "command": "python3 -m pylsp",
-    "languages": ["python"],
-    "priority": 90,
-    "working_directory": "",
-    "env": [{
-        "name": "PYTHONPATH",
-        "value": ".:$PYTHONPATH"
-    }]
-   }]
- }
-}
-)EOF";
+const char* CONTEXT_FINDER = "finder";
+const char* CONTEXT_BUILDER = "builder";
+constexpr int MAX_LOAD_WORKSPACE_RETRIES = 3;
 } // namespace
 
 RemotyWorkspace::RemotyWorkspace()
@@ -88,7 +68,8 @@ RemotyWorkspace::RemotyWorkspace(bool dummy)
 
 RemotyWorkspace::~RemotyWorkspace() { UnbindEvents(); }
 
-wxFileName RemotyWorkspace::GetFileName() const { return {}; }
+wxString RemotyWorkspace::GetFileName() const { return m_remoteWorkspaceFile; }
+wxString RemotyWorkspace::GetDir() const { return GetFileName().BeforeLast('/'); }
 
 wxString RemotyWorkspace::GetFilesMask() const { return clFileSystemWorkspace::Get().GetFilesMask(); }
 
@@ -149,6 +130,9 @@ void RemotyWorkspace::BindEvents()
     EventNotifier::Get()->Bind(wxEVT_LSP_OPEN_FILE, &RemotyWorkspace::OnLSPOpenFile, this);
     EventNotifier::Get()->Bind(wxEVT_DOWNLOAD_FILE, &RemotyWorkspace::OnDownloadFile, this);
     EventNotifier::Get()->Bind(wxEVT_FINDINFILES_STOP_SEARCH, &RemotyWorkspace::OnStopFindInFiles, this);
+
+    EventNotifier::Get()->Bind(wxEVT_SFTP_ASYNC_SAVE_COMPLETED, &RemotyWorkspace::OnSftpSaveSuccess, this);
+    EventNotifier::Get()->Bind(wxEVT_SFTP_ASYNC_SAVE_ERROR, &RemotyWorkspace::OnSftpSaveError, this);
     // codelite-remote events
 
     // finder
@@ -162,10 +146,6 @@ void RemotyWorkspace::BindEvents()
     m_codeliteRemoteFinder.Bind(wxEVT_CODELITE_REMOTE_LIST_FILES_DONE, &RemotyWorkspace::OnCodeLiteRemoteListFilesDone,
                                 this);
 
-    m_codeliteRemoteFinder.Bind(wxEVT_CODELITE_REMOTE_LIST_LSPS, &RemotyWorkspace::OnCodeLiteRemoteListLSPsOutput,
-                                this);
-    m_codeliteRemoteFinder.Bind(wxEVT_CODELITE_REMOTE_LIST_LSPS_DONE,
-                                &RemotyWorkspace::OnCodeLiteRemoteListLSPsOutputDone, this);
     // builder
     m_codeliteRemoteBuilder.Bind(wxEVT_CODELITE_REMOTE_EXEC_OUTPUT, &RemotyWorkspace::OnCodeLiteRemoteBuildOutput,
                                  this);
@@ -191,6 +171,8 @@ void RemotyWorkspace::UnbindEvents()
     EventNotifier::Get()->Unbind(wxEVT_CMD_EXECUTE_ACTIVE_PROJECT, &RemotyWorkspace::OnRun, this);
     EventNotifier::Get()->Unbind(wxEVT_CMD_STOP_EXECUTED_PROGRAM, &RemotyWorkspace::OnStop, this);
     EventNotifier::Get()->Unbind(wxEVT_FILE_FIND_MATCHING_PAIR, &RemotyWorkspace::OnFindSwapped, this);
+    EventNotifier::Get()->Unbind(wxEVT_SFTP_ASYNC_SAVE_COMPLETED, &RemotyWorkspace::OnSftpSaveSuccess, this);
+    EventNotifier::Get()->Unbind(wxEVT_SFTP_ASYNC_SAVE_ERROR, &RemotyWorkspace::OnSftpSaveError, this);
 
     Unbind(wxEVT_TERMINAL_EXIT, &RemotyWorkspace::OnExecProcessTerminated, this);
     EventNotifier::Get()->Unbind(wxEVT_OPEN_RESOURCE_FILE_SELECTED, &RemotyWorkspace::OnOpenResourceFile, this);
@@ -211,10 +193,6 @@ void RemotyWorkspace::UnbindEvents()
                                   this);
     m_codeliteRemoteFinder.Unbind(wxEVT_CODELITE_REMOTE_LIST_FILES_DONE,
                                   &RemotyWorkspace::OnCodeLiteRemoteListFilesDone, this);
-    m_codeliteRemoteFinder.Unbind(wxEVT_CODELITE_REMOTE_LIST_LSPS, &RemotyWorkspace::OnCodeLiteRemoteListLSPsOutput,
-                                  this);
-    m_codeliteRemoteFinder.Unbind(wxEVT_CODELITE_REMOTE_LIST_LSPS_DONE,
-                                  &RemotyWorkspace::OnCodeLiteRemoteListLSPsOutputDone, this);
 
     // builder
     m_codeliteRemoteBuilder.Unbind(wxEVT_CODELITE_REMOTE_EXEC_OUTPUT, &RemotyWorkspace::OnCodeLiteRemoteBuildOutput,
@@ -284,14 +262,8 @@ void RemotyWorkspace::DoClose(bool notify)
     m_localWorkspaceFile.clear();
     m_localUserWorkspaceFile.clear();
 
-    // remove any clangd configured by us
-    DeleteLspEntries();
-
     m_codeliteRemoteBuilder.Stop();
     m_codeliteRemoteFinder.Stop();
-
-    // restore the LSP state
-    LSPRestore();
 
     // and restart all the lsp_metadata_arr
     clLanguageServerEvent restart_event(wxEVT_LSP_RESTART_ALL);
@@ -318,10 +290,6 @@ void RemotyWorkspace::SaveSettings()
     wxBusyCursor bc;
     m_settings.Save(m_localWorkspaceFile, m_localUserWorkspaceFile);
     clSFTPManager::Get().AsyncSaveFile(m_localWorkspaceFile, m_remoteWorkspaceFile, m_account.GetAccountName());
-
-    // settings change, we must re-configure the lsp_metadata_arr
-    DeleteLspEntries();
-    ScanForLSPs();
 }
 
 void RemotyWorkspace::OnBuildStarting(clBuildEvent& event)
@@ -437,15 +405,16 @@ void RemotyWorkspace::OnBuildHotspotClicked(clBuildEvent& event)
     CHECK_EVENT(event);
     wxString filename = event.GetFileName();
     int line_number = event.GetLineNumber();
+    wxString basepath = event.GetBuildDir();
 
     clDEBUG() << "Remoty: attempting to open file:" << filename << endl;
 
     wxFileName fn(filename);
     if(fn.IsRelative(wxPATH_UNIX)) {
         // attempt to make it absolute
-        fn.MakeAbsolute(GetRemoteWorkingDir(), wxPATH_UNIX);
+        fn.MakeAbsolute(basepath.empty() ? GetRemoteWorkingDir() : basepath, wxPATH_UNIX);
         filename = fn.GetFullPath(wxPATH_UNIX);
-        clDEBUG() << "Remoty: file is relative, converting to fullpath:" << filename << endl;
+        LOG_IF_DEBUG { clDEBUG() << "Remoty: file is relative, converting to fullpath:" << filename << endl; }
     }
 
     // download the file
@@ -453,7 +422,10 @@ void RemotyWorkspace::OnBuildHotspotClicked(clBuildEvent& event)
     clGetManager()->GetStatusBar()->SetStatusText(_("Downloading file: ") + filename);
     auto editor = clSFTPManager::Get().OpenFile(filename, m_account.GetAccountName());
     if(editor) {
-        editor->CenterLine(line_number);
+        // the compiler report line numbers from 1
+        // clEditor start counting lines from 0
+        // hence the -1
+        editor->CenterLine(line_number - 1);
     }
 }
 
@@ -511,22 +483,32 @@ void RemotyWorkspace::DoOpen(const wxString& file_path, const wxString& account)
     // Load the account
     auto ssh_account = SSHAccountInfo::LoadAccount(account);
 
-    if(ssh_account.GetAccountName().IsEmpty()) {
+    if(ssh_account.GetAccountName().empty()) {
         ::wxMessageBox(_("Could not find a matching SSH account to load the workspace!"), "CodeLite",
                        wxICON_ERROR | wxCENTER);
         return;
     }
 
     wxBusyCursor bc;
-    // first: attempt to download the workspace file and store it locally
-    auto localFile = clSFTPManager::Get().Download(file_path, account);
-    if(!localFile.IsOk()) {
-        ::wxMessageBox(_("Failed to download remote workspace file!\n") + clSFTPManager::Get().GetLastError(),
-                       "CodeLite", wxICON_ERROR | wxCENTER);
-        return;
+    wxFileName localFile;
+    for(size_t i = 0; i < MAX_LOAD_WORKSPACE_RETRIES; ++i) {
+        // first: attempt to download the workspace file and store it locally
+        localFile = clSFTPManager::Get().Download(file_path, account);
+        if(localFile.IsOk()) {
+            break;
+        }
+
+        // check if we can do another retry
+        if((i + 1) >= MAX_LOAD_WORKSPACE_RETRIES) {
+            // retries exhausted
+            ::wxMessageBox(_("Failed to download remote workspace file!\n") + clSFTPManager::Get().GetLastError(),
+                           "CodeLite", wxICON_ERROR | wxCENTER);
+            return;
+        }
+        clGetManager()->SetStatusMessage(_("Retrying to load workspace..."));
     }
 
-    wxFileName userSettings(clStandardPaths::Get().GetUserDataDir(), localFile.GetFullName());
+    wxFileName userSettings{ clStandardPaths::Get().GetUserDataDir(), localFile.GetFullName() };
     userSettings.AppendDir("Remoty");
     userSettings.AppendDir("LocalWorkspaces");
     userSettings.Mkdir(wxPATH_MKDIR_FULL);
@@ -542,26 +524,6 @@ void RemotyWorkspace::DoOpen(const wxString& file_path, const wxString& account)
     m_localWorkspaceFile = localFile.GetFullPath();
     m_localUserWorkspaceFile = userSettings.GetFullPath();
 
-    // If the user has .clang-format file, download it as well and place it next to the root download folder
-    wxString remoteClangFormatFile = file_path;
-    remoteClangFormatFile = remoteClangFormatFile.BeforeLast('/');
-    remoteClangFormatFile << "/.clang-format";
-
-    // Construct the local file path
-    wxFileName localClangFormatFile = clSFTP::GetLocalFileName(ssh_account, remoteClangFormatFile, true);
-    bool hasClangFormatFile = clSFTPManager::Get().IsFileExists(remoteClangFormatFile, ssh_account);
-    if(hasClangFormatFile) {
-        localClangFormatFile = clSFTPManager::Get().Download(remoteClangFormatFile, ssh_account.GetAccountName(),
-                                                             localClangFormatFile.GetFullPath());
-        if(localClangFormatFile.IsOk() && localClangFormatFile.FileExists()) {
-            clGetManager()->SetStatusMessage(_("Downloaded .clang-format file"));
-        } else {
-            ::wxMessageBox(_("Failed to download file: ") + remoteClangFormatFile + "\n" +
-                               clSFTPManager::Get().GetLastError(),
-                           "CodeLite", wxICON_WARNING | wxOK | wxOK_DEFAULT);
-        }
-    }
-
     wxString fixed_path = file_path;
     fixed_path.Replace("\\", "/");
     wxString workspacePath = GetRemoteWorkingDir();
@@ -576,9 +538,9 @@ void RemotyWorkspace::DoOpen(const wxString& file_path, const wxString& account)
     clWorkspaceManager::Get().SetWorkspace(this);
 
     // wrap the command in ssh
-    wxFileName ssh_exe;
+    wxString ssh_exe;
     EnvSetter setter;
-    if(!FileUtils::FindExe("ssh", ssh_exe)) {
+    if(!ThePlatform->Which("ssh", &ssh_exe)) {
         ::wxMessageBox(
             _("Could not locate ssh executable in your PATH!\nUpdate your PATH from 'settings -> environment "
               "variables' to a location that contains your 'ssh' executable"),
@@ -589,12 +551,6 @@ void RemotyWorkspace::DoOpen(const wxString& file_path, const wxString& account)
     RestartCodeLiteRemote(&m_codeliteRemoteFinder, CONTEXT_FINDER);
     ScanForWorkspaceFiles();
 
-    // Disable all local lsp_metadata_arr before we start
-    LSPStoreAndDisableCurrent();
-
-    // Configure remote lsp_metadata_arr for this workspace
-    ScanForLSPs();
-
     // Notify that the a new workspace is loaded
     clWorkspaceEvent open_event(wxEVT_WORKSPACE_LOADED);
     open_event.SetIsRemote(true);
@@ -603,6 +559,11 @@ void RemotyWorkspace::DoOpen(const wxString& file_path, const wxString& account)
     open_event.SetRemoteAccount(m_account.GetAccountName());
     open_event.SetWorkspaceType(GetWorkspaceType());
     EventNotifier::Get()->AddPendingEvent(open_event);
+
+    // update the remote workspace list
+    RemotyConfig config;
+    RemoteWorkspaceInfo wi{ m_account.GetAccountName(), m_remoteWorkspaceFile };
+    config.UpdateRecentWorkspaces(wi);
 
     CallAfter(&RemotyWorkspace::RestoreSession);
 }
@@ -719,61 +680,7 @@ void RemotyWorkspace::GetExecutable(wxString& exe, wxString& args, wxString& wd)
 
     exe = conf->GetExecutable();
     args = conf->GetArgs();
-    wd = conf->GetWorkingDirectory().IsEmpty() ? GetFileName().GetPath() : conf->GetWorkingDirectory();
-}
-
-void RemotyWorkspace::DoConfigureLSP(const LSPParams& lsp)
-{
-    wxArrayString langs;
-    langs.reserve(lsp.languages.size());
-    for(const auto& lang : lsp.languages) {
-        langs.Add(lang);
-    }
-
-    wxString root_uri = lsp.working_directory;
-    if(root_uri.empty()) {
-        root_uri = GetRemoteWorkingDir();
-    }
-
-    clLanguageServerEvent configure_event(wxEVT_LSP_CONFIGURE);
-    configure_event.SetLspName(lsp.lsp_name);
-    configure_event.SetLanguages(langs);
-    configure_event.SetRootUri(root_uri);
-    configure_event.SetEnviroment(lsp.env);
-
-    auto conf = m_settings.GetSelectedConfig();
-    wxString envLine;
-    if(conf) {
-        const wxString& envstr = conf->GetEnvironment();
-        auto env_arr = FileUtils::CreateEnvironment(envstr);
-        // build environment line
-        for(const auto& env_pair : env_arr) {
-            envLine << env_pair.first << "=" << env_pair.second << " ";
-        }
-    }
-
-    // append the configuration environment from the configuraton file
-    for(const auto& env_pair : lsp.env) {
-        envLine << env_pair.first << "=" << env_pair.second << " ";
-    }
-
-    wxString lsp_cmd;
-    lsp_cmd << "cd " << root_uri << " && ";
-
-    if(!envLine.empty()) {
-        lsp_cmd << envLine << " "; // it ends with space
-    }
-    lsp_cmd << lsp.command;
-
-    configure_event.SetLspCommand(lsp_cmd);
-    configure_event.SetFlags(clLanguageServerEvent::kEnabled | clLanguageServerEvent::kDisaplyDiags |
-                             clLanguageServerEvent::kSSHEnabled);
-    configure_event.SetSshAccount(m_account.GetAccountName());
-    configure_event.SetConnectionString("stdio");
-    configure_event.SetPriority(lsp.priority);
-    clDEBUG() << "Remoty: configured server:" << lsp.lsp_name << ", command:" << lsp.command << endl;
-    m_installedLSPs.Add(lsp.lsp_name);
-    EventNotifier::Get()->ProcessEvent(configure_event);
+    wd = conf->GetWorkingDirectory().IsEmpty() ? GetDir() : conf->GetWorkingDirectory();
 }
 
 IProcess* RemotyWorkspace::DoRunSSHProcess(const wxString& scriptContent, bool sync)
@@ -927,8 +834,6 @@ void RemotyWorkspace::OnFindSwapped(clFileSystemEvent& event)
         return;
     }
     CHECK_EVENT(event);
-
-    const wxString& ext = editor->GetFileName().GetExt();
     std::vector<wxString> exts;
 
     // replace the file extension
@@ -1000,15 +905,33 @@ void RemotyWorkspace::OnCodeLiteRemoteListFilesDone(clCommandEvent& event)
     wxString message;
     message << _("Remote file system scan completed. Found: ") << m_workspaceFiles.size() << _(" files");
     clGetManager()->SetStatusMessage(message);
+
+    // notify that scan is completed
+    clDEBUG() << "Sending wxEVT_WORKSPACE_FILES_SCANNED event..." << endl;
+    clWorkspaceEvent event_scan{ wxEVT_WORKSPACE_FILES_SCANNED };
+    EventNotifier::Get()->ProcessEvent(event_scan);
 }
 
 void RemotyWorkspace::ScanForWorkspaceFiles()
 {
     wxString root_dir = GetRemoteWorkingDir();
     wxString file_extensions = GetSettings().GetSelectedConfig()->GetFileExtensions();
-
     file_extensions.Replace("*", "");
+
+    auto files_exts = ::wxStringTokenize(file_extensions, ";,", wxTOKEN_STRTOK);
+    std::unordered_set<wxString> S{ files_exts.begin(), files_exts.end() };
+
+    // common file extensions
+    S.insert(".txt");
+    S.insert(".toml");
+    S.insert("Rakefile");
+
+    file_extensions.clear();
+    for(const auto& s : S) {
+        file_extensions << s << ";";
+    }
     m_workspaceFiles.clear();
+
     // use the finder codelite-remote
     m_codeliteRemoteFinder.ListFiles(root_dir, file_extensions);
 }
@@ -1030,31 +953,17 @@ void RemotyWorkspace::OnShutdown(clCommandEvent& event)
     DoClose(false);
 }
 
-void RemotyWorkspace::DeleteLspEntries()
-{
-    clDEBUG() << "Remoty: deleting Language Servers..." << endl;
-    for(const auto& lsp_name : m_installedLSPs) {
-        clLanguageServerEvent delete_event(wxEVT_LSP_DELETE);
-        delete_event.SetLspName(lsp_name);
-        EventNotifier::Get()->ProcessEvent(delete_event);
-        clDEBUG() << "  " << lsp_name << endl;
-    }
-    clDEBUG() << "Remoty: Success" << endl;
-    m_installedLSPs.clear();
-}
-
-void RemotyWorkspace::OnInitDone(wxCommandEvent& event)
-{
-    event.Skip();
-    // incase we crashed earlier, remote any relics
-    DeleteLspEntries();
-}
+void RemotyWorkspace::OnInitDone(wxCommandEvent& event) { event.Skip(); }
 
 void RemotyWorkspace::FindInFiles(const wxString& root_dir, const wxString& file_extensions, const wxString& find_what,
                                   bool whole_word, bool icase)
 {
     m_remoteFinder.SetCodeLiteRemote(&m_codeliteRemoteFinder);
-    m_remoteFinder.Search(root_dir, find_what, file_extensions, whole_word, icase);
+    wxString search_folder = root_dir;
+    if(search_folder == "<Workspace Folder>") {
+        search_folder = GetRemoteWorkingDir();
+    }
+    m_remoteFinder.Search(search_folder, find_what, file_extensions, whole_word, icase);
 }
 
 void RemotyWorkspace::OnCodeLiteRemoteFindProgress(clFindInFilesEvent& event)
@@ -1105,88 +1014,6 @@ void RemotyWorkspace::OnLSPOpenFile(LSPEvent& event)
     editor->SelectRange(event.GetLocation().GetRange());
 }
 
-void RemotyWorkspace::OnCodeLiteRemoteListLSPsOutput(clCommandEvent& event)
-{
-    clDEBUG() << "Remoty: `list_lsps` output:" << event.GetString() << endl;
-    m_listLspOutput << event.GetString();
-}
-
-void RemotyWorkspace::OnCodeLiteRemoteListLSPsOutputDone(clCommandEvent& event)
-{
-    wxUnusedVar(event);
-    JSON root(m_listLspOutput);
-    if(!root.isOk()) {
-        clERROR() << "Invalid JSON output received from codelite-remote for `list_lsps` command." << endl;
-        clERROR() << m_listLspOutput << endl;
-        return;
-    }
-
-    auto servers = root.toElement();
-    if(!servers.isArray()) {
-        clERROR() << "Invalid JSON. Expected array of servers, found:" << servers.format(true) << endl;
-        return;
-    }
-
-    int servers_count = servers.arraySize();
-    for(int i = 0; i < servers_count; ++i) {
-        ConfigureLsp(servers[i]);
-    }
-
-    clDEBUG() << "Sending wxEVT_LSP_RESTART_ALL event" << endl;
-    // we are done configuring the lsp_metadata_arr, restart them
-    clLanguageServerEvent restart_event(wxEVT_LSP_RESTART_ALL);
-    EventNotifier::Get()->ProcessEvent(restart_event);
-}
-
-void RemotyWorkspace::ScanForLSPs()
-{
-    m_codeliteRemoteFinder.ListLSPs();
-    m_installedLSPs.clear();
-    clDEBUG() << "-- Requested for `list_lsps` command" << endl;
-}
-
-void RemotyWorkspace::LSPStoreAndDisableCurrent()
-{
-    // load the current state of the current LSPs
-    wxFileName lspConfig(clStandardPaths::Get().GetUserDataDir(), "LanguageServer.conf");
-    lspConfig.AppendDir("config");
-
-    m_old_servers_state.clear();
-    clConfig::Get().Read(
-        wxEmptyString,
-        [this](const JSONItem& json) {
-            // iterate over the servers and keep their current state (we are only interested in the enabled ones)
-            auto servers = json["LSPConfig"]["servers"];
-            size_t count = servers.arraySize();
-            for(size_t i = 0; i < count; ++i) {
-                auto server = servers[i];
-                bool enabled = server["enabled"].toBool();
-                if(enabled) {
-                    wxString name = server["name"].toString();
-                    m_old_servers_state.insert({ name, enabled });
-                }
-            }
-        },
-        lspConfig);
-
-    // now that we have the current state of all current LSPs, tell LSP to disable them all
-    for(auto vt : m_old_servers_state) {
-        clLanguageServerEvent disable_event(wxEVT_LSP_DISABLE_SERVER);
-        disable_event.SetLspName(vt.first);
-        EventNotifier::Get()->ProcessEvent(disable_event);
-    }
-}
-
-void RemotyWorkspace::LSPRestore()
-{
-    for(auto vt : m_old_servers_state) {
-        clLanguageServerEvent enable_event(wxEVT_LSP_ENABLE_SERVER);
-        enable_event.SetLspName(vt.first);
-        EventNotifier::Get()->ProcessEvent(enable_event);
-    }
-    m_old_servers_state.clear();
-}
-
 wxString RemotyWorkspace::GetName() const { return wxFileName(m_localWorkspaceFile).GetName(); }
 
 bool LSPParams::IsOk() const { return !this->command.empty() && !this->lsp_name.empty(); }
@@ -1211,17 +1038,6 @@ void LSPParams::From(const JSONItem& json)
             this->env.push_back({ name, value });
         }
     }
-}
-
-void RemotyWorkspace::ConfigureLsp(const JSONItem& lsp)
-{
-    // build the
-    LSPParams lsp_params;
-    lsp_params.From(lsp);
-    if(!lsp_params.IsOk()) {
-        return;
-    }
-    DoConfigureLSP(lsp_params);
 }
 
 void RemotyWorkspace::SetProjectActive(const wxString& name) { wxUnusedVar(name); }
@@ -1320,3 +1136,23 @@ wxString RemotyWorkspace::GetDebuggerName() const
         return wxEmptyString;
     }
 }
+
+void RemotyWorkspace::OnSftpSaveError(clCommandEvent& event)
+{
+    event.Skip();
+    if(!IsOpened()) {
+        return;
+    }
+    ::wxMessageBox(_("Failed to save file: ") + event.GetFileName(), "CodeLite", wxICON_WARNING | wxOK | wxCENTRE);
+}
+
+void RemotyWorkspace::OnSftpSaveSuccess(clCommandEvent& event)
+{
+    event.Skip();
+    if(!IsOpened()) {
+        return;
+    }
+    clGetManager()->SetStatusMessage(_("Remote file: ") + event.GetFileName() + _(" successfully saved"));
+}
+
+wxString RemotyWorkspace::GetSshAccount() const { return GetAccount().GetAccountName(); }

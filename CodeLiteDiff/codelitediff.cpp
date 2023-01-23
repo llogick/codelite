@@ -79,7 +79,7 @@ CodeLiteDiff::CodeLiteDiff(IManager* manager)
 
 CodeLiteDiff::~CodeLiteDiff() {}
 
-void CodeLiteDiff::CreateToolBar(clToolBar* toolbar) { wxUnusedVar(toolbar); }
+void CodeLiteDiff::CreateToolBar(clToolBarGeneric* toolbar) { wxUnusedVar(toolbar); }
 
 void CodeLiteDiff::CreatePluginMenu(wxMenu* pluginsMenu)
 {
@@ -202,6 +202,6 @@ wxFileName CodeLiteDiff::SaveEditorToTmpfile(IEditor* editor) const
 
 void CodeLiteDiff::OnNewDiffFolder(wxCommandEvent& e)
 {
-    DiffFoldersFrame dlg(EventNotifier::Get()->TopFrame());
-    dlg.ShowModal();
+    DiffFoldersFrame *dlg = new DiffFoldersFrame(EventNotifier::Get()->TopFrame());
+    dlg->Show();
 }

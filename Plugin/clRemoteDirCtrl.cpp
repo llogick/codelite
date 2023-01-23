@@ -57,7 +57,7 @@ clRemoteDirCtrl::clRemoteDirCtrl(wxWindow* parent)
         // same kind
         return (a->GetFullName().CmpNoCase(b->GetFullName()) < 0);
     };
-    m_treeCtrl->SetSortFunction(SortFunc);
+    m_treeCtrl->SetSortFunction(std::move(SortFunc));
 }
 
 clRemoteDirCtrl::~clRemoteDirCtrl()
@@ -221,7 +221,7 @@ void clRemoteDirCtrl::OnContextMenu(wxContextMenuEvent& event)
         menu.Append(wxID_OPEN, _("Open"));
         menu.Bind(
             wxEVT_MENU,
-            [this, item, items](wxCommandEvent& event) {
+            [this, items](wxCommandEvent& event) {
                 event.Skip();
                 // open the items
                 for(const auto& i : items) {
@@ -233,7 +233,7 @@ void clRemoteDirCtrl::OnContextMenu(wxContextMenuEvent& event)
         menu.Append(wxID_DOWN, _("Download and Open Containing Folder..."));
         menu.Bind(
             wxEVT_MENU,
-            [this, item](wxCommandEvent& event) {
+            [this](wxCommandEvent& event) {
                 event.Skip();
                 auto items = GetSelections();
                 if(items.empty()) {

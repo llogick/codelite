@@ -116,7 +116,7 @@ ExternalToolsPlugin::ExternalToolsPlugin(IManager* manager)
 
 ExternalToolsPlugin::~ExternalToolsPlugin() {}
 
-void ExternalToolsPlugin::CreateToolBar(clToolBar* toolbar)
+void ExternalToolsPlugin::CreateToolBar(clToolBarGeneric* toolbar)
 {
     // support both toolbars icon size
     auto images = toolbar->GetBitmapsCreateIfNeeded();
@@ -190,7 +190,7 @@ void ExternalToolsPlugin::DoRecreateToolbar()
 
     std::vector<ToolInfo> tools = m_externalTools.GetTools();
     std::sort(tools.begin(), tools.end(), DecSort());
-    clToolBar* toolbar = clGetManager()->GetToolBar();
+    auto toolbar = clGetManager()->GetToolBar();
     auto images = toolbar->GetBitmapsCreateIfNeeded();
     size_t cogIndex = images->Add("cog");
 
@@ -229,10 +229,7 @@ void ExternalToolsPlugin::DoRecreateToolbar()
                 }
             }
         }
-        clToolBarButton* button =
-            new clToolBarButton(toolbar, wxXmlResource::GetXRCID(ti.GetId()), bmp_index, ti.GetName());
-        toolbar->InsertAfter(where, button);
-        where = button->GetId();
+        toolbar->AddTool(wxXmlResource::GetXRCID(ti.GetId()), ti.GetName(), bmp_index);
     }
     toolbar->Realize();
 }

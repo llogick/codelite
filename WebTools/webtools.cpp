@@ -109,7 +109,7 @@ WebTools::WebTools(IManager* manager)
 
 WebTools::~WebTools() { NodeJSWorkspace::Free(); }
 
-void WebTools::CreateToolBar(clToolBar* toolbar) { wxUnusedVar(toolbar); }
+void WebTools::CreateToolBar(clToolBarGeneric* toolbar) { wxUnusedVar(toolbar); }
 
 void WebTools::CreatePluginMenu(wxMenu* pluginsMenu)
 {
@@ -294,7 +294,7 @@ void WebTools::OnNodeJSDebuggerStopped(clDebugEvent& event)
 {
     event.Skip();
 
-    clDEBUG1() << "Saving NodeJS debugger perspective";
+    LOG_IF_TRACE { clDEBUG1() << "Saving NodeJS debugger perspective"; }
 
     wxString layoutFileName = "nodejs.layout";
     if(event.GetEventType() == wxEVT_NODEJS_DEBUGGER_STOPPED) {

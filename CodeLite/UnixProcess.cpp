@@ -36,7 +36,13 @@ UnixProcess::UnixProcess(wxEvtHandler* owner, const wxArrayString& args)
 
         char** argv = new char*[args.size() + 1];
         for(size_t i = 0; i < args.size(); ++i) {
-            std::string cstr_arg = FileUtils::ToStdString(args[i]);
+            wxString wx_arg = args[i];
+            wx_arg.Trim();
+            if(wx_arg.StartsWith("\"") && wx_arg.EndsWith("\"") && wx_arg.size() >= 2) {
+                wx_arg.Remove(0, 1).RemoveLast();
+            }
+
+            std::string cstr_arg = FileUtils::ToStdString(wx_arg);
             argv[i] = new char[cstr_arg.length() + 1];
             strcpy(argv[i], cstr_arg.c_str());
             argv[i][cstr_arg.length()] = 0;
@@ -130,7 +136,7 @@ bool UnixProcess::Write(int fd, const std::string& message, std::atomic_bool& sh
             tmp.erase(0, bytes);
         }
     }
-    clDEBUG1() << "Wrote message of size:" << message.length() << endl;
+    LOG_IF_TRACE { clDEBUG1() << "Wrote message of size:" << message.length() << endl; }
     return tmp.empty();
 }
 
@@ -183,11 +189,16 @@ void UnixProcess::StartReaderThread()
                 std::string content;
                 if(!ReadAll(stdoutFd, content, 10)) {
                     clProcessEvent evt(wxEVT_ASYNC_PROCESS_TERMINATED);
+                    wxString error_message;
+                    int exit_code = process->Wait();
+                    error_message << "Process exit code (" << exit_code << "):" << strerror(exit_code);
+                    evt.SetString(error_message);
                     process->m_owner->AddPendingEvent(evt);
                     break;
                 } else if(!content.empty()) {
                     clProcessEvent evt(wxEVT_ASYNC_PROCESS_OUTPUT);
                     evt.SetOutput(wxString() << content);
+                    evt.SetOutputRaw(content);
                     process->m_owner->AddPendingEvent(evt);
                 }
                 content.clear();
@@ -198,6 +209,7 @@ void UnixProcess::StartReaderThread()
                 } else if(!content.empty()) {
                     clProcessEvent evt(wxEVT_ASYNC_PROCESS_STDERR);
                     evt.SetOutput(wxString() << content);
+                    evt.SetOutputRaw(content);
                     process->m_owner->AddPendingEvent(evt);
                 }
             }

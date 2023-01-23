@@ -1,7 +1,7 @@
 #ifndef LANGUAGESERVERENTRY_H
 #define LANGUAGESERVERENTRY_H
 
-#include "LSPNetwork.h"
+#include "LSP/LSPNetwork.h"
 #include "asyncprocess.h"
 #include "cl_config.h"
 
@@ -22,10 +22,8 @@ class LanguageServerEntry
     int m_priority = 50;
     bool m_disaplayDiagnostics = true;
     wxString m_command;
+    wxString m_remoteCommand;
     wxString m_initOptions;
-    clEnvList_t m_env;
-    bool m_remoteLSP = false;
-    wxString m_sshAccount;
 
 public:
     // use 'map' to keep the items sorted by name
@@ -40,11 +38,15 @@ public:
 public:
     virtual void FromJSON(const JSONItem& json);
     virtual JSONItem ToJSON() const;
-    LanguageServerEntry();
-    virtual ~LanguageServerEntry();
 
-    void SetCommand(const wxString& command) { this->m_command = command; }
-    const wxString& GetCommand() const { return m_command; }
+    LanguageServerEntry();
+    ~LanguageServerEntry();
+
+    void SetCommand(const wxString& command);
+    wxString GetCommand(bool pretty = false) const;
+
+    void SetInitOptions(const wxString& initOptions);
+    wxString GetInitOptions() const;
 
     LanguageServerEntry& SetDisaplayDiagnostics(bool disaplayDiagnostics)
     {
@@ -90,14 +92,6 @@ public:
     const wxString& GetName() const { return m_name; }
     eNetworkType GetNetType() const;
     bool IsAutoRestart() const;
-    void SetInitOptions(const wxString& initOptions) { this->m_initOptions = initOptions; }
-    const wxString& GetInitOptions() const { return m_initOptions; }
-    const clEnvList_t& GetEnv() const { return m_env; }
-    void SetEnv(const clEnvList_t& env) { this->m_env = env; }
-    void SetSshAccount(const wxString& sshAccount) { this->m_sshAccount = sshAccount; }
-    const wxString& GetSshAccount() const { return m_sshAccount; }
-    void SetRemoteLSP(bool remoteLSP) { this->m_remoteLSP = remoteLSP; }
-    bool IsRemoteLSP() const { return m_remoteLSP; }
 };
 
 #endif // LANGUAGESERVERENTRY_H

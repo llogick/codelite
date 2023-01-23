@@ -22,11 +22,11 @@
 #include <wx/button.h>
 #include <wx/panel.h>
 #include <wx/textctrl.h>
-#include <wx/choice.h>
-#include <wx/arrstr.h>
 #include <wx/imaglist.h>
 #include <wx/stc/stc.h>
+#include "clThemedSTC.hpp"
 #include <wx/combobox.h>
+#include <wx/arrstr.h>
 #include <wx/slider.h>
 #include "clThemedTextCtrl.hpp"
 #include <wx/dataview.h>
@@ -69,6 +69,7 @@ protected:
     virtual void OnDeleteLSP(wxCommandEvent& event) { event.Skip(); }
     virtual void OnDeleteLSPUI(wxUpdateUIEvent& event) { event.Skip(); }
     virtual void OnOKUI(wxUpdateUIEvent& event) { event.Skip(); }
+    virtual void OnButtonOK(wxCommandEvent& event) { event.Skip(); }
 
 public:
     wxCheckBox* GetCheckBoxEnable() { return m_checkBoxEnable; }
@@ -91,16 +92,12 @@ protected:
     wxCheckBox* m_checkBoxEnabled;
     wxStaticText* m_staticText453;
     wxTextCtrl* m_textCtrlName;
-    wxCheckBox* m_checkBoxRemoteServer;
-    wxChoice* m_choiceSSHAccounts;
     wxStaticText* m_staticText495;
-    wxNotebook* m_notebook164;
-    wxPanel* m_panelCommand;
-    wxStyledTextCtrl* m_stcCommand;
-    wxPanel* m_panelEnvironment;
-    wxStyledTextCtrl* m_stcEnvironment;
-    wxPanel* m_panelInitOptions;
-    wxStyledTextCtrl* m_stcInitOptions;
+    wxNotebook* m_notebook201;
+    wxPanel* m_panel202;
+    clThemedSTC* m_stcCommand;
+    wxPanel* m_panel203;
+    clThemedSTC* m_stcInitOptions;
     wxStaticText* m_staticText579;
     wxTextCtrl* m_textCtrlWD;
     wxButton* m_button1153;
@@ -114,7 +111,6 @@ protected:
     wxCheckBox* m_checkBoxDiagnostics;
 
 protected:
-    virtual void OnRemoteServerUI(wxUpdateUIEvent& event) { event.Skip(); }
     virtual void OnCommandUI(wxUpdateUIEvent& event) { event.Skip(); }
     virtual void OnBrowseWD(wxCommandEvent& event) { event.Skip(); }
     virtual void OnSuggestLanguages(wxCommandEvent& event) { event.Skip(); }
@@ -123,16 +119,12 @@ public:
     wxCheckBox* GetCheckBoxEnabled() { return m_checkBoxEnabled; }
     wxStaticText* GetStaticText453() { return m_staticText453; }
     wxTextCtrl* GetTextCtrlName() { return m_textCtrlName; }
-    wxCheckBox* GetCheckBoxRemoteServer() { return m_checkBoxRemoteServer; }
-    wxChoice* GetChoiceSSHAccounts() { return m_choiceSSHAccounts; }
     wxStaticText* GetStaticText495() { return m_staticText495; }
-    wxStyledTextCtrl* GetStcCommand() { return m_stcCommand; }
-    wxPanel* GetPanelCommand() { return m_panelCommand; }
-    wxStyledTextCtrl* GetStcEnvironment() { return m_stcEnvironment; }
-    wxPanel* GetPanelEnvironment() { return m_panelEnvironment; }
-    wxStyledTextCtrl* GetStcInitOptions() { return m_stcInitOptions; }
-    wxPanel* GetPanelInitOptions() { return m_panelInitOptions; }
-    wxNotebook* GetNotebook164() { return m_notebook164; }
+    clThemedSTC* GetStcCommand() { return m_stcCommand; }
+    wxPanel* GetPanel202() { return m_panel202; }
+    clThemedSTC* GetStcInitOptions() { return m_stcInitOptions; }
+    wxPanel* GetPanel203() { return m_panel203; }
+    wxNotebook* GetNotebook201() { return m_notebook201; }
     wxStaticText* GetStaticText579() { return m_staticText579; }
     wxTextCtrl* GetTextCtrlWD() { return m_textCtrlWD; }
     wxButton* GetButton1153() { return m_button1153; }

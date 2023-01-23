@@ -2,11 +2,11 @@
 #define __LanguageServerPlugin__
 
 #include "CompileCommandsGenerator.h"
-#include "LSPDetector.hpp"
 #include "LanguageServerCluster.h"
 #include "LanguageServerLogView.h"
 #include "clTabTogglerHelper.h"
 #include "cl_command_event.h"
+#include "detectors/LSPDetector.hpp"
 #include "plugin.h"
 
 class LanguageServerPlugin : public IPlugin
@@ -47,7 +47,7 @@ public:
     //--------------------------------------------
     // Abstract methods
     //--------------------------------------------
-    virtual void CreateToolBar(clToolBar* toolbar);
+    virtual void CreateToolBar(clToolBarGeneric* toolbar);
     /**
      * @brief Add plugin menu to the "Plugins" menu item in the menu bar
      */

@@ -1,15 +1,17 @@
-#include "LSPDetector.hpp"
+#include "LanguageServerSettingsDlg.h"
+
 #include "LSPDetectorManager.hpp"
 #include "LanguageServerConfig.h"
 #include "LanguageServerEntry.h"
 #include "LanguageServerPage.h"
-#include "LanguageServerSettingsDlg.h"
 #include "NewLanguageServerDlg.h"
-#include "clPythonLocator.hpp"
+#include "detectors/LSPDetector.hpp"
 #include "globals.h"
+
 #include <vector>
 #include <wx/choicdlg.h>
 #include <wx/msgdlg.h>
+#include <wx/wupdlock.h>
 
 LanguageServerSettingsDlg::LanguageServerSettingsDlg(wxWindow* parent, bool triggerScan)
     : LanguageServerSettingsDlgBase(parent)
@@ -17,7 +19,9 @@ LanguageServerSettingsDlg::LanguageServerSettingsDlg(wxWindow* parent, bool trig
 {
     DoInitialize();
     ::clSetDialogBestSizeAndPosition(this);
-    if(m_scanOnStartup) { CallAfter(&LanguageServerSettingsDlg::DoScan); }
+    if(m_scanOnStartup) {
+        CallAfter(&LanguageServerSettingsDlg::DoScan);
+    }
 }
 
 LanguageServerSettingsDlg::~LanguageServerSettingsDlg() {}
@@ -47,7 +51,9 @@ void LanguageServerSettingsDlg::Save()
 void LanguageServerSettingsDlg::OnDeleteLSP(wxCommandEvent& event)
 {
     int sel = m_notebook->GetSelection();
-    if(sel == wxNOT_FOUND) { return; }
+    if(sel == wxNOT_FOUND) {
+        return;
+    }
     wxString serverName = m_notebook->GetPageText(sel);
 
     if(::wxMessageBox(wxString() << _("Are you sure you want to delete '") << serverName << "' ?", "CodeLite",
@@ -69,6 +75,7 @@ void LanguageServerSettingsDlg::OnScan(wxCommandEvent& event)
 
 void LanguageServerSettingsDlg::DoInitialize()
 {
+    wxWindowUpdateLocker locker{ this };
     m_notebook->DeleteAllPages();
     const LanguageServerEntry::Map_t& servers = LanguageServerConfig::Get().GetServers();
     for(const LanguageServerEntry::Map_t::value_type& vt : servers) {
@@ -104,6 +111,22 @@ void LanguageServerSettingsDlg::DoScan()
         }
         conf.Save();
         DoInitialize();
-        if(m_scanOnStartup) { m_checkBoxEnable->SetValue(true); }
+        if(m_scanOnStartup) {
+            m_checkBoxEnable->SetValue(true);
+        }
     }
+}
+void LanguageServerSettingsDlg::OnButtonOK(wxCommandEvent& event)
+{
+    // validate the data
+    for(size_t i = 0; i < m_notebook->GetPageCount(); ++i) {
+        LanguageServerPage* page = dynamic_cast<LanguageServerPage*>(m_notebook->GetPage(i));
+        wxString message;
+        if(!page->ValidateData(&message)) {
+            ::wxMessageBox(message, "CodeLite", wxOK | wxCENTRE | wxICON_WARNING, this);
+            event.Skip(false);
+            return;
+        }
+    }
+    event.Skip();
 }

@@ -23,10 +23,7 @@
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
-#include "editor_config.h"
 #include "gitCommitListDlg.h"
-#include "gitentry.h"
-#include "windowattrmanager.h"
 
 #include "GitDiffOutputParser.h"
 #include "asyncprocess.h"
@@ -38,6 +35,8 @@
 #include "globals.h"
 #include "lexer_configuration.h"
 #include "processreaderthread.h"
+#include "windowattrmanager.h"
+
 #include <wx/tokenzr.h>
 
 static int ID_COPY_COMMIT_HASH = wxNewId();
@@ -51,15 +50,13 @@ GitCommitListDlg::GitCommitListDlg(wxWindow* parent, const wxString& workingDir,
 {
     Bind(wxEVT_ASYNC_PROCESS_OUTPUT, &GitCommitListDlg::OnProcessOutput, this);
     Bind(wxEVT_ASYNC_PROCESS_TERMINATED, &GitCommitListDlg::OnProcessTerminated, this);
-    Bind(wxEVT_CHAR_HOOK, &GitCommitListDlg::OnCharHook, this);
+    // Bind(wxEVT_CHAR_HOOK, &GitCommitListDlg::OnCharHook, this);
 
     LexerConf::Ptr_t lex = EditorConfigST::Get()->GetLexer("diff");
     if(lex) {
         lex->Apply(m_stcDiff, true);
     }
 
-    LexerConf::Ptr_t textLex = EditorConfigST::Get()->GetLexer("text");
-    textLex->Apply(m_stcCommitMessage, true);
     m_dvListCtrlCommitList->Connect(ID_COPY_COMMIT_HASH, wxEVT_COMMAND_MENU_SELECTED,
                                     wxCommandEventHandler(GitCommitListDlg::OnCopyCommitHashToClipboard), NULL, this);
     m_dvListCtrlCommitList->Connect(ID_REVERT_COMMIT, wxEVT_COMMAND_MENU_SELECTED,
@@ -185,10 +182,13 @@ void GitCommitListDlg::DoLoadCommits(const wxString& filter)
     // hash @ subject @ author-name @ date
     wxArrayString gitList = wxStringTokenize(m_commitList, wxT("\n"), wxTOKEN_STRTOK);
     wxArrayString filters = wxStringTokenize(filter, " ");
+    wxVector<wxVariant> cols;
     for(unsigned i = 0; i < gitList.GetCount(); ++i) {
         wxArrayString gitCommit = ::wxStringTokenize(gitList[i], "@");
         if(gitCommit.GetCount() >= 4) {
-            wxVector<wxVariant> cols;
+            cols.clear();
+            cols.reserve(4);
+
             cols.push_back(gitCommit.Item(0));
             cols.push_back(gitCommit.Item(1));
             cols.push_back(gitCommit.Item(2));
@@ -270,6 +270,7 @@ wxString GitCommitListDlg::GetFilterString() const
 
 void GitCommitListDlg::OnNext(wxCommandEvent& event)
 {
+    wxUnusedVar(event);
     m_skip += 100;
     // Check the cache first
     if(m_history.count(m_skip)) {
@@ -281,6 +282,7 @@ void GitCommitListDlg::OnNext(wxCommandEvent& event)
 
 void GitCommitListDlg::OnPrevious(wxCommandEvent& event)
 {
+    wxUnusedVar(event);
     int skip = m_skip - 100;
     if(m_history.count(skip)) {
         m_skip -= 100;

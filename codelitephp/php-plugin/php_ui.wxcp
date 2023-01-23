@@ -151,6 +151,10 @@
 							"m_label":	"Style:",
 							"m_value":	""
 						}, {
+							"type":	"bool",
+							"m_label":	"Keep as a class member",
+							"m_value":	false
+						}, {
 							"type":	"choice",
 							"m_label":	"Orientation:",
 							"m_selection":	0,
@@ -359,6 +363,10 @@
 							"m_label":	"Style:",
 							"m_value":	""
 						}, {
+							"type":	"bool",
+							"m_label":	"Keep as a class member",
+							"m_value":	false
+						}, {
 							"type":	"choice",
 							"m_label":	"Orientation:",
 							"m_selection":	0,
@@ -385,6 +393,10 @@
 									"type":	"string",
 									"m_label":	"Style:",
 									"m_value":	""
+								}, {
+									"type":	"bool",
+									"m_label":	"Keep as a class member",
+									"m_value":	false
 								}, {
 									"type":	"string",
 									"m_label":	"# Columns:",
@@ -574,7 +586,6 @@
 									"m_events":	[{
 											"m_eventName":	"wxEVT_COMMAND_TEXT_UPDATED",
 											"m_eventClass":	"wxCommandEvent",
-											"m_eventHandler":	"wxCommandEventHandler",
 											"m_functionNameAndSignature":	"OnFolderSelected(wxCommandEvent& event)",
 											"m_description":	"Respond to a wxEVT_COMMAND_TEXT_UPDATED event, generated when the text changes.\nNotice that this event will be sent when the text controls contents changes\n - whether this is due to user input or comes from the program itself\n(for example, if SetValue() is called); see ChangeValue() for a function which does not send this event.",
 											"m_noBody":	false
@@ -669,7 +680,6 @@
 									"m_events":	[{
 											"m_eventName":	"wxEVT_COMMAND_BUTTON_CLICKED",
 											"m_eventClass":	"wxCommandEvent",
-											"m_eventHandler":	"wxCommandEventHandler",
 											"m_functionNameAndSignature":	"OnBrowse(wxCommandEvent& event)",
 											"m_description":	"Process a wxEVT_COMMAND_BUTTON_CLICKED event, when the button is clicked.",
 											"m_noBody":	false
@@ -838,7 +848,6 @@
 									"m_events":	[{
 											"m_eventName":	"wxEVT_COMMAND_TEXT_UPDATED",
 											"m_eventClass":	"wxCommandEvent",
-											"m_eventHandler":	"wxCommandEventHandler",
 											"m_functionNameAndSignature":	"OnNameUpdated(wxCommandEvent& event)",
 											"m_description":	"Respond to a wxEVT_COMMAND_TEXT_UPDATED event, generated when the text changes.\nNotice that this event will be sent when the text controls contents changes\n - whether this is due to user input or comes from the program itself\n(for example, if SetValue() is called); see ChangeValue() for a function which does not send this event.",
 											"m_noBody":	false
@@ -1046,14 +1055,12 @@
 									"m_events":	[{
 											"m_eventName":	"wxEVT_COMMAND_BUTTON_CLICKED",
 											"m_eventClass":	"wxCommandEvent",
-											"m_eventHandler":	"wxCommandEventHandler",
 											"m_functionNameAndSignature":	"OnOK(wxCommandEvent& event)",
 											"m_description":	"Process a wxEVT_COMMAND_BUTTON_CLICKED event, when the button is clicked.",
 											"m_noBody":	false
 										}, {
 											"m_eventName":	"wxEVT_UPDATE_UI",
 											"m_eventClass":	"wxUpdateUIEvent",
-											"m_eventHandler":	"wxUpdateUIEventHandler",
 											"m_functionNameAndSignature":	"OnOKUI(wxUpdateUIEvent& event)",
 											"m_description":	"Process a wxEVT_UPDATE_UI event",
 											"m_noBody":	false
@@ -1222,6 +1229,10 @@
 							"m_label":	"Style:",
 							"m_value":	""
 						}, {
+							"type":	"bool",
+							"m_label":	"Keep as a class member",
+							"m_value":	false
+						}, {
 							"type":	"choice",
 							"m_label":	"Orientation:",
 							"m_selection":	0,
@@ -1248,6 +1259,10 @@
 									"type":	"string",
 									"m_label":	"Style:",
 									"m_value":	""
+								}, {
+									"type":	"bool",
+									"m_label":	"Keep as a class member",
+									"m_value":	false
 								}, {
 									"type":	"string",
 									"m_label":	"# Columns:",
@@ -1627,6 +1642,10 @@
 									"m_label":	"Style:",
 									"m_value":	""
 								}, {
+									"type":	"bool",
+									"m_label":	"Keep as a class member",
+									"m_value":	false
+								}, {
 									"type":	"choice",
 									"m_label":	"Orientation:",
 									"m_selection":	1,
@@ -1944,6 +1963,10 @@
 							"m_label":	"Style:",
 							"m_value":	""
 						}, {
+							"type":	"bool",
+							"m_label":	"Keep as a class member",
+							"m_value":	false
+						}, {
 							"type":	"choice",
 							"m_label":	"Orientation:",
 							"m_selection":	0,
@@ -2113,21 +2136,18 @@
 							"m_events":	[{
 									"m_eventName":	"wxEVT_KEY_DOWN",
 									"m_eventClass":	"wxKeyEvent",
-									"m_eventHandler":	"wxKeyEventHandler",
 									"m_functionNameAndSignature":	"OnKeyDown(wxKeyEvent& event)",
 									"m_description":	"Process a wxEVT_KEY_DOWN event (any key has been pressed)",
 									"m_noBody":	false
 								}, {
 									"m_eventName":	"wxEVT_COMMAND_TEXT_UPDATED",
 									"m_eventClass":	"wxCommandEvent",
-									"m_eventHandler":	"wxCommandEventHandler",
 									"m_functionNameAndSignature":	"OnFilterText(wxCommandEvent& event)",
 									"m_description":	"Respond to a wxEVT_COMMAND_TEXT_UPDATED event, generated when the text changes.\nNotice that this event will be sent when the text controls contents changes\n - whether this is due to user input or comes from the program itself\n(for example, if SetValue() is called); see ChangeValue() for a function which does not send this event.",
 									"m_noBody":	false
 								}, {
 									"m_eventName":	"wxEVT_COMMAND_TEXT_ENTER",
 									"m_eventClass":	"wxCommandEvent",
-									"m_eventHandler":	"wxCommandEventHandler",
 									"m_functionNameAndSignature":	"OnFilterEnter(wxCommandEvent& event)",
 									"m_description":	"Respond to a wxEVT_COMMAND_TEXT_ENTER event, generated when enter is pressed in a text control\n(which must have wxTE_PROCESS_ENTER style for this event to be generated).",
 									"m_noBody":	false
@@ -2139,7 +2159,7 @@
 							"border":	5,
 							"gbSpan":	"1,1",
 							"gbPosition":	"0,0",
-							"m_styles":	["wxDV_ROW_LINES", "wxDV_SINGLE"],
+							"m_styles":	["wxDV_ROW_LINES", "wxDV_SINGLE", "wxTRANSPARENT_WINDOW", "wxBORDER_SIMPLE"],
 							"m_sizerFlags":	["wxALL", "wxLEFT", "wxRIGHT", "wxTOP", "wxBOTTOM", "wxEXPAND"],
 							"m_properties":	[{
 									"type":	"winid",
@@ -2201,7 +2221,6 @@
 							"m_events":	[{
 									"m_eventName":	"wxEVT_COMMAND_DATAVIEW_ITEM_ACTIVATED",
 									"m_eventClass":	"wxDataViewEvent",
-									"m_eventHandler":	"wxDataViewEventHandler",
 									"m_functionNameAndSignature":	"OnDVItemActivated(wxDataViewEvent& event)",
 									"m_description":	"Process a wxEVT_COMMAND_DATAVIEW_ITEM_ACTIVATED event.\nThis event is triggered by double clicking an item or pressing some special key (usually \"Enter\") when it is focused",
 									"m_noBody":	false
@@ -2467,6 +2486,10 @@
 							"m_label":	"Style:",
 							"m_value":	""
 						}, {
+							"type":	"bool",
+							"m_label":	"Keep as a class member",
+							"m_value":	false
+						}, {
 							"type":	"choice",
 							"m_label":	"Orientation:",
 							"m_selection":	0,
@@ -2646,6 +2669,10 @@
 													"m_label":	"Style:",
 													"m_value":	""
 												}, {
+													"type":	"bool",
+													"m_label":	"Keep as a class member",
+													"m_value":	false
+												}, {
 													"type":	"choice",
 													"m_label":	"Orientation:",
 													"m_selection":	0,
@@ -2672,6 +2699,10 @@
 															"type":	"string",
 															"m_label":	"Style:",
 															"m_value":	""
+														}, {
+															"type":	"bool",
+															"m_label":	"Keep as a class member",
+															"m_value":	false
 														}, {
 															"type":	"string",
 															"m_label":	"# Columns:",
@@ -3036,6 +3067,10 @@
 															"m_label":	"Style:",
 															"m_value":	""
 														}, {
+															"type":	"bool",
+															"m_label":	"Keep as a class member",
+															"m_value":	false
+														}, {
 															"type":	"choice",
 															"m_label":	"Orientation:",
 															"m_selection":	1,
@@ -3206,7 +3241,6 @@
 															"m_events":	[{
 																	"m_eventName":	"wxEVT_COMMAND_BUTTON_CLICKED",
 																	"m_eventClass":	"wxCommandEvent",
-																	"m_eventHandler":	"wxCommandEventHandler",
 																	"m_functionNameAndSignature":	"OnBrowseForIncludePath(wxCommandEvent& event)",
 																	"m_description":	"Process a wxEVT_COMMAND_BUTTON_CLICKED event, when the button is clicked.",
 																	"m_noBody":	false
@@ -3238,7 +3272,7 @@
 													"border":	5,
 													"gbSpan":	"1,1",
 													"gbPosition":	"0,0",
-													"m_styles":	[],
+													"m_styles":	["wxTRANSPARENT_WINDOW", "wxBORDER_SIMPLE"],
 													"m_sizerFlags":	["wxALL", "wxLEFT", "wxRIGHT", "wxTOP", "wxBOTTOM", "wxEXPAND"],
 													"m_properties":	[{
 															"type":	"winid",
@@ -3460,6 +3494,10 @@
 													"m_label":	"Style:",
 													"m_value":	""
 												}, {
+													"type":	"bool",
+													"m_label":	"Keep as a class member",
+													"m_value":	false
+												}, {
 													"type":	"choice",
 													"m_label":	"Orientation:",
 													"m_selection":	0,
@@ -3486,6 +3524,10 @@
 															"type":	"string",
 															"m_label":	"Style:",
 															"m_value":	""
+														}, {
+															"type":	"bool",
+															"m_label":	"Keep as a class member",
+															"m_value":	false
 														}, {
 															"type":	"choice",
 															"m_label":	"Orientation:",
@@ -3676,7 +3718,6 @@
 															"m_events":	[{
 																	"m_eventName":	"wxEVT_COMMAND_BUTTON_CLICKED",
 																	"m_eventClass":	"wxCommandEvent",
-																	"m_eventHandler":	"wxCommandEventHandler",
 																	"m_functionNameAndSignature":	"OnAddCCPath(wxCommandEvent& event)",
 																	"m_description":	"Process a wxEVT_COMMAND_BUTTON_CLICKED event, when the button is clicked.",
 																	"m_noBody":	false
@@ -3689,7 +3730,7 @@
 													"border":	5,
 													"gbSpan":	",",
 													"gbPosition":	",",
-													"m_styles":	["wxTE_RICH2", "wxTE_PROCESS_TAB", "wxTE_PROCESS_ENTER", "wxTE_MULTILINE", "wxTE_DONTWRAP"],
+													"m_styles":	["wxTE_RICH2", "wxTE_PROCESS_TAB", "wxTE_PROCESS_ENTER", "wxTE_MULTILINE", "wxTE_DONTWRAP", "wxTRANSPARENT_WINDOW", "wxBORDER_SIMPLE"],
 													"m_sizerFlags":	["wxALL", "wxLEFT", "wxRIGHT", "wxTOP", "wxBOTTOM", "wxEXPAND"],
 													"m_properties":	[{
 															"type":	"winid",
@@ -3771,7 +3812,6 @@
 													"m_events":	[{
 															"m_eventName":	"wxEVT_COMMAND_TEXT_UPDATED",
 															"m_eventClass":	"wxCommandEvent",
-															"m_eventHandler":	"wxCommandEventHandler",
 															"m_functionNameAndSignature":	"OnUpdateApplyUI(wxCommandEvent& event)",
 															"m_description":	"Respond to a wxEVT_COMMAND_TEXT_UPDATED event, generated when the text changes.\nNotice that this event will be sent when the text controls contents changes\n - whether this is due to user input or comes from the program itself\n(for example, if SetValue() is called); see ChangeValue() for a function which does not send this event.",
 															"m_noBody":	false
@@ -3886,6 +3926,10 @@
 													"m_label":	"Style:",
 													"m_value":	""
 												}, {
+													"type":	"bool",
+													"m_label":	"Keep as a class member",
+													"m_value":	false
+												}, {
 													"type":	"choice",
 													"m_label":	"Orientation:",
 													"m_selection":	0,
@@ -3912,6 +3956,10 @@
 															"type":	"string",
 															"m_label":	"Style:",
 															"m_value":	""
+														}, {
+															"type":	"bool",
+															"m_label":	"Keep as a class member",
+															"m_value":	false
 														}, {
 															"type":	"string",
 															"m_label":	"# Columns:",
@@ -4449,6 +4497,10 @@
 									"m_label":	"Style:",
 									"m_value":	""
 								}, {
+									"type":	"bool",
+									"m_label":	"Keep as a class member",
+									"m_value":	false
+								}, {
 									"type":	"choice",
 									"m_label":	"Orientation:",
 									"m_selection":	1,
@@ -4544,7 +4596,6 @@
 									"m_events":	[{
 											"m_eventName":	"wxEVT_COMMAND_BUTTON_CLICKED",
 											"m_eventClass":	"wxCommandEvent",
-											"m_eventHandler":	"wxCommandEventHandler",
 											"m_functionNameAndSignature":	"OnOK(wxCommandEvent& event)",
 											"m_description":	"Process a wxEVT_COMMAND_BUTTON_CLICKED event, when the button is clicked.",
 											"m_noBody":	false
@@ -4773,6 +4824,10 @@
 							"m_label":	"Style:",
 							"m_value":	""
 						}, {
+							"type":	"bool",
+							"m_label":	"Keep as a class member",
+							"m_value":	false
+						}, {
 							"type":	"choice",
 							"m_label":	"Orientation:",
 							"m_selection":	0,
@@ -4952,6 +5007,10 @@
 													"m_label":	"Style:",
 													"m_value":	""
 												}, {
+													"type":	"bool",
+													"m_label":	"Keep as a class member",
+													"m_value":	false
+												}, {
 													"type":	"choice",
 													"m_label":	"Orientation:",
 													"m_selection":	0,
@@ -5101,7 +5160,6 @@
 													"m_events":	[{
 															"m_eventName":	"wxEVT_COMMAND_CHOICEBOOK_PAGE_CHANGED",
 															"m_eventClass":	"wxChoicebookEvent",
-															"m_eventHandler":	"wxChoicebookEventHandler",
 															"m_functionNameAndSignature":	"OnPageChanged(wxChoicebookEvent& event)",
 															"m_description":	"The page selection was changed",
 															"m_noBody":	false
@@ -5205,6 +5263,10 @@
 																			"m_label":	"Style:",
 																			"m_value":	""
 																		}, {
+																			"type":	"bool",
+																			"m_label":	"Keep as a class member",
+																			"m_value":	false
+																		}, {
 																			"type":	"choice",
 																			"m_label":	"Orientation:",
 																			"m_selection":	0,
@@ -5231,6 +5293,10 @@
 																					"type":	"string",
 																					"m_label":	"Style:",
 																					"m_value":	""
+																				}, {
+																					"type":	"bool",
+																					"m_label":	"Keep as a class member",
+																					"m_value":	false
 																				}, {
 																					"type":	"string",
 																					"m_label":	"# Columns:",
@@ -5412,7 +5478,6 @@
 																					"m_events":	[{
 																							"m_eventName":	"wxEVT_COMMAND_FILEPICKER_CHANGED",
 																							"m_eventClass":	"wxFileDirPickerEvent",
-																							"m_eventHandler":	"wxFileDirPickerEventHandler",
 																							"m_functionNameAndSignature":	"OnPHPExecChanged(wxFileDirPickerEvent& event)",
 																							"m_description":	"The user changed the file selected in the control either using the button or using text control\n(see wxFLP_USE_TEXTCTRL; note that in this case the event is fired\nonly if the user's input is valid, e.g. an existing file path if wxFLP_FILE_MUST_EXIST was given).",
 																							"m_noBody":	false
@@ -5573,7 +5638,6 @@
 																					"m_events":	[{
 																							"m_eventName":	"wxEVT_COMMAND_FILEPICKER_CHANGED",
 																							"m_eventClass":	"wxFileDirPickerEvent",
-																							"m_eventHandler":	"wxFileDirPickerEventHandler",
 																							"m_functionNameAndSignature":	"OnPHPIniSelected(wxFileDirPickerEvent& event)",
 																							"m_description":	"The user changed the file selected in the control either using the button or using text control\n(see wxFLP_USE_TEXTCTRL; note that in this case the event is fired\nonly if the user's input is valid, e.g. an existing file path if wxFLP_FILE_MUST_EXIST was given).",
 																							"m_noBody":	false
@@ -5734,7 +5798,6 @@
 																					"m_events":	[{
 																							"m_eventName":	"wxEVT_COMMAND_FILEPICKER_CHANGED",
 																							"m_eventClass":	"wxFileDirPickerEvent",
-																							"m_eventHandler":	"wxFileDirPickerEventHandler",
 																							"m_functionNameAndSignature":	"OnIndexFileSelected(wxFileDirPickerEvent& event)",
 																							"m_description":	"The user changed the file selected in the control either using the button or using text control\n(see wxFLP_USE_TEXTCTRL; note that in this case the event is fired\nonly if the user's input is valid, e.g. an existing file path if wxFLP_FILE_MUST_EXIST was given).",
 																							"m_noBody":	false
@@ -5891,7 +5954,6 @@
 																					"m_events":	[{
 																							"m_eventName":	"wxEVT_COMMAND_DIRPICKER_CHANGED",
 																							"m_eventClass":	"wxFileDirPickerEvent",
-																							"m_eventHandler":	"wxFileDirPickerEventHandler",
 																							"m_functionNameAndSignature":	"OnWorkingDirectoryChanged(wxFileDirPickerEvent& event)",
 																							"m_description":	"The user changed the directory selected in the control either using the button or using text control\n(see wxDIRP_USE_TEXTCTRL; note that in this case the event is fired only if the user's input is valid, e.g. an existing directory path).",
 																							"m_noBody":	false
@@ -6060,7 +6122,6 @@
 																					"m_events":	[{
 																							"m_eventName":	"wxEVT_COMMAND_TEXT_UPDATED",
 																							"m_eventClass":	"wxCommandEvent",
-																							"m_eventHandler":	"wxCommandEventHandler",
 																							"m_functionNameAndSignature":	"OnUpdateApplyUI(wxCommandEvent& event)",
 																							"m_description":	"Respond to a wxEVT_COMMAND_TEXT_UPDATED event, generated when the text changes.\nNotice that this event will be sent when the text controls contents changes\n - whether this is due to user input or comes from the program itself\n(for example, if SetValue() is called); see ChangeValue() for a function which does not send this event.",
 																							"m_noBody":	false
@@ -6161,7 +6222,6 @@
 																					"m_events":	[{
 																							"m_eventName":	"wxEVT_COMMAND_CHECKBOX_CLICKED",
 																							"m_eventClass":	"wxCommandEvent",
-																							"m_eventHandler":	"wxCommandEventHandler",
 																							"m_functionNameAndSignature":	"OnPauseWhenExeTerminates(wxCommandEvent& event)",
 																							"m_description":	"Process a wxEVT_COMMAND_CHECKBOX_CLICKED event, when the checkbox is clicked.",
 																							"m_noBody":	false
@@ -6268,6 +6328,10 @@
 																			"type":	"string",
 																			"m_label":	"Style:",
 																			"m_value":	""
+																		}, {
+																			"type":	"bool",
+																			"m_label":	"Keep as a class member",
+																			"m_value":	false
 																		}, {
 																			"type":	"string",
 																			"m_label":	"# Columns:",
@@ -6457,7 +6521,6 @@
 																			"m_events":	[{
 																					"m_eventName":	"wxEVT_COMMAND_TEXT_UPDATED",
 																					"m_eventClass":	"wxCommandEvent",
-																					"m_eventHandler":	"wxCommandEventHandler",
 																					"m_functionNameAndSignature":	"OnProjectURLChanged(wxCommandEvent& event)",
 																					"m_description":	"Respond to a wxEVT_COMMAND_TEXT_UPDATED event, generated when the text changes.\nNotice that this event will be sent when the text controls contents changes\n - whether this is due to user input or comes from the program itself\n(for example, if SetValue() is called); see ChangeValue() for a function which does not send this event.",
 																					"m_noBody":	false
@@ -6558,7 +6621,6 @@
 																			"m_events":	[{
 																					"m_eventName":	"wxEVT_COMMAND_CHECKBOX_CLICKED",
 																					"m_eventClass":	"wxCommandEvent",
-																					"m_eventHandler":	"wxCommandEventHandler",
 																					"m_functionNameAndSignature":	"OnUseSystemBrowser(wxCommandEvent& event)",
 																					"m_description":	"Process a wxEVT_COMMAND_CHECKBOX_CLICKED event, when the checkbox is clicked.",
 																					"m_noBody":	false
@@ -6675,6 +6737,10 @@
 															"m_label":	"Style:",
 															"m_value":	""
 														}, {
+															"type":	"bool",
+															"m_label":	"Keep as a class member",
+															"m_value":	false
+														}, {
 															"type":	"choice",
 															"m_label":	"Orientation:",
 															"m_selection":	0,
@@ -6701,6 +6767,10 @@
 																	"type":	"string",
 																	"m_label":	"Style:",
 																	"m_value":	""
+																}, {
+																	"type":	"bool",
+																	"m_label":	"Keep as a class member",
+																	"m_value":	false
 																}, {
 																	"type":	"choice",
 																	"m_label":	"Orientation:",
@@ -6891,7 +6961,6 @@
 																	"m_events":	[{
 																			"m_eventName":	"wxEVT_COMMAND_BUTTON_CLICKED",
 																			"m_eventClass":	"wxCommandEvent",
-																			"m_eventHandler":	"wxCommandEventHandler",
 																			"m_functionNameAndSignature":	"OnAddIncludePath(wxCommandEvent& event)",
 																			"m_description":	"Process a wxEVT_COMMAND_BUTTON_CLICKED event, when the button is clicked.",
 																			"m_noBody":	false
@@ -6986,7 +7055,6 @@
 															"m_events":	[{
 																	"m_eventName":	"wxEVT_COMMAND_TEXT_UPDATED",
 																	"m_eventClass":	"wxCommandEvent",
-																	"m_eventHandler":	"wxCommandEventHandler",
 																	"m_functionNameAndSignature":	"OnUpdateApplyUI(wxCommandEvent& event)",
 																	"m_description":	"Respond to a wxEVT_COMMAND_TEXT_UPDATED event, generated when the text changes.\nNotice that this event will be sent when the text controls contents changes\n - whether this is due to user input or comes from the program itself\n(for example, if SetValue() is called); see ChangeValue() for a function which does not send this event.",
 																	"m_noBody":	false
@@ -7101,6 +7169,10 @@
 															"m_label":	"Style:",
 															"m_value":	""
 														}, {
+															"type":	"bool",
+															"m_label":	"Keep as a class member",
+															"m_value":	false
+														}, {
 															"type":	"choice",
 															"m_label":	"Orientation:",
 															"m_selection":	0,
@@ -7183,7 +7255,6 @@
 															"m_events":	[{
 																	"m_eventName":	"wxEVT_PG_CHANGED",
 																	"m_eventClass":	"wxPropertyGridEvent",
-																	"m_eventHandler":	"wxPropertyGridEventHandler",
 																	"m_functionNameAndSignature":	"OnPgmgrviewPgChanged(wxPropertyGridEvent& event)",
 																	"m_description":	"Respond to wxEVT_PG_CHANGED event, generated when property value has been changed by the user",
 																	"m_noBody":	false
@@ -7429,6 +7500,10 @@
 													"m_label":	"Style:",
 													"m_value":	""
 												}, {
+													"type":	"bool",
+													"m_label":	"Keep as a class member",
+													"m_value":	false
+												}, {
 													"type":	"choice",
 													"m_label":	"Orientation:",
 													"m_selection":	0,
@@ -7578,14 +7653,12 @@
 													"m_events":	[{
 															"m_eventName":	"wxEVT_COMMAND_DATAVIEW_ITEM_CONTEXT_MENU",
 															"m_eventClass":	"wxDataViewEvent",
-															"m_eventHandler":	"wxDataViewEventHandler",
 															"m_functionNameAndSignature":	"OnFileMappingMenu(wxDataViewEvent& event)",
 															"m_description":	"Process a wxEVT_COMMAND_DATAVIEW_ITEM_CONTEXT_MENU event generated when the user right clicks inside the control.\nNotice that this menu is generated even if the click didn't occur on any valid item, in this case wxDataViewEvent::GetItem() simply returns an invalid item.",
 															"m_noBody":	false
 														}, {
 															"m_eventName":	"wxEVT_COMMAND_DATAVIEW_ITEM_ACTIVATED",
 															"m_eventClass":	"wxDataViewEvent",
-															"m_eventHandler":	"wxDataViewEventHandler",
 															"m_functionNameAndSignature":	"OnFileMappingItemActivated(wxDataViewEvent& event)",
 															"m_description":	"Process a wxEVT_COMMAND_DATAVIEW_ITEM_ACTIVATED event.\nThis event is triggered by double clicking an item or pressing some special key (usually \"Enter\") when it is focused",
 															"m_noBody":	false
@@ -7784,6 +7857,10 @@
 													"m_label":	"Style:",
 													"m_value":	""
 												}, {
+													"type":	"bool",
+													"m_label":	"Keep as a class member",
+													"m_value":	false
+												}, {
 													"type":	"choice",
 													"m_label":	"Orientation:",
 													"m_selection":	0,
@@ -7810,6 +7887,10 @@
 															"type":	"string",
 															"m_label":	"Style:",
 															"m_value":	""
+														}, {
+															"type":	"bool",
+															"m_label":	"Keep as a class member",
+															"m_value":	false
 														}, {
 															"type":	"choice",
 															"m_label":	"Orientation:",
@@ -8000,7 +8081,6 @@
 															"m_events":	[{
 																	"m_eventName":	"wxEVT_COMMAND_BUTTON_CLICKED",
 																	"m_eventClass":	"wxCommandEvent",
-																	"m_eventHandler":	"wxCommandEventHandler",
 																	"m_functionNameAndSignature":	"OnAddCCPath(wxCommandEvent& event)",
 																	"m_description":	"Process a wxEVT_COMMAND_BUTTON_CLICKED event, when the button is clicked.",
 																	"m_noBody":	false
@@ -8095,7 +8175,6 @@
 													"m_events":	[{
 															"m_eventName":	"wxEVT_COMMAND_TEXT_UPDATED",
 															"m_eventClass":	"wxCommandEvent",
-															"m_eventHandler":	"wxCommandEventHandler",
 															"m_functionNameAndSignature":	"OnUpdateApplyUI(wxCommandEvent& event)",
 															"m_description":	"Respond to a wxEVT_COMMAND_TEXT_UPDATED event, generated when the text changes.\nNotice that this event will be sent when the text controls contents changes\n - whether this is due to user input or comes from the program itself\n(for example, if SetValue() is called); see ChangeValue() for a function which does not send this event.",
 															"m_noBody":	false
@@ -8124,6 +8203,10 @@
 									"type":	"string",
 									"m_label":	"Style:",
 									"m_value":	""
+								}, {
+									"type":	"bool",
+									"m_label":	"Keep as a class member",
+									"m_value":	false
 								}, {
 									"type":	"choice",
 									"m_label":	"Orientation:",
@@ -8220,7 +8303,6 @@
 									"m_events":	[{
 											"m_eventName":	"wxEVT_COMMAND_BUTTON_CLICKED",
 											"m_eventClass":	"wxCommandEvent",
-											"m_eventHandler":	"wxCommandEventHandler",
 											"m_functionNameAndSignature":	"OnOK(wxCommandEvent& event)",
 											"m_description":	"Process a wxEVT_COMMAND_BUTTON_CLICKED event, when the button is clicked.",
 											"m_noBody":	false
@@ -8403,14 +8485,12 @@
 									"m_events":	[{
 											"m_eventName":	"wxEVT_COMMAND_BUTTON_CLICKED",
 											"m_eventClass":	"wxCommandEvent",
-											"m_eventHandler":	"wxCommandEventHandler",
 											"m_functionNameAndSignature":	"OnApply(wxCommandEvent& event)",
 											"m_description":	"Process a wxEVT_COMMAND_BUTTON_CLICKED event, when the button is clicked.",
 											"m_noBody":	false
 										}, {
 											"m_eventName":	"wxEVT_UPDATE_UI",
 											"m_eventClass":	"wxUpdateUIEvent",
-											"m_eventHandler":	"wxUpdateUIEventHandler",
 											"m_functionNameAndSignature":	"OnApplyUI(wxUpdateUIEvent& event)",
 											"m_description":	"Process a wxEVT_UPDATE_UI event",
 											"m_noBody":	false
@@ -8551,6 +8631,10 @@
 							"m_label":	"Style:",
 							"m_value":	""
 						}, {
+							"type":	"bool",
+							"m_label":	"Keep as a class member",
+							"m_value":	false
+						}, {
 							"type":	"choice",
 							"m_label":	"Orientation:",
 							"m_selection":	0,
@@ -8577,6 +8661,10 @@
 									"type":	"string",
 									"m_label":	"Style:",
 									"m_value":	""
+								}, {
+									"type":	"bool",
+									"m_label":	"Keep as a class member",
+									"m_value":	false
 								}, {
 									"type":	"string",
 									"m_label":	"# Columns:",
@@ -9011,7 +9099,6 @@
 									"m_events":	[{
 											"m_eventName":	"wxEVT_UPDATE_UI",
 											"m_eventClass":	"wxUpdateUIEvent",
-											"m_eventHandler":	"wxUpdateUIEventHandler",
 											"m_functionNameAndSignature":	"OnOkUI(wxUpdateUIEvent& event)",
 											"m_description":	"Process a wxEVT_UPDATE_UI event",
 											"m_noBody":	false
@@ -9155,6 +9242,10 @@
 							"type":	"string",
 							"m_label":	"Style:",
 							"m_value":	""
+						}, {
+							"type":	"bool",
+							"m_label":	"Keep as a class member",
+							"m_value":	false
 						}, {
 							"type":	"choice",
 							"m_label":	"Orientation:",
@@ -9360,14 +9451,12 @@
 							"m_events":	[{
 									"m_eventName":	"wxEVT_COMMAND_TREE_ITEM_MENU",
 									"m_eventClass":	"wxTreeEvent",
-									"m_eventHandler":	"wxTreeEventHandler",
 									"m_functionNameAndSignature":	"OnMenu(wxTreeEvent& event)",
 									"m_description":	"The context menu for the selected item has been requested,\neither by a right click or by using the menu key.",
 									"m_noBody":	false
 								}, {
 									"m_eventName":	"wxEVT_COMMAND_TREE_ITEM_ACTIVATED",
 									"m_eventClass":	"wxTreeEvent",
-									"m_eventHandler":	"wxTreeEventHandler",
 									"m_functionNameAndSignature":	"OnItemActivated(wxTreeEvent& event)",
 									"m_description":	"An item has been activated (e.g. double clicked).",
 									"m_noBody":	false
@@ -9482,6 +9571,10 @@
 							"type":	"string",
 							"m_label":	"Style:",
 							"m_value":	""
+						}, {
+							"type":	"bool",
+							"m_label":	"Keep as a class member",
+							"m_value":	false
 						}, {
 							"type":	"choice",
 							"m_label":	"Orientation:",
@@ -9658,6 +9751,10 @@
 													"m_label":	"Style:",
 													"m_value":	""
 												}, {
+													"type":	"bool",
+													"m_label":	"Keep as a class member",
+													"m_value":	false
+												}, {
 													"type":	"choice",
 													"m_label":	"Orientation:",
 													"m_selection":	0,
@@ -9732,14 +9829,12 @@
 													"m_events":	[{
 															"m_eventName":	"wxEVT_COMMAND_DATAVIEW_ITEM_ACTIVATED",
 															"m_eventClass":	"wxDataViewEvent",
-															"m_eventHandler":	"wxDataViewEventHandler",
 															"m_functionNameAndSignature":	"OnCallStackItemActivated(wxDataViewEvent& event)",
 															"m_description":	"Process a wxEVT_COMMAND_DATAVIEW_ITEM_ACTIVATED event.\nThis event is triggered by double clicking an item or pressing some special key (usually \"Enter\") when it is focused",
 															"m_noBody":	false
 														}, {
 															"m_eventName":	"wxEVT_COMMAND_DATAVIEW_ITEM_CONTEXT_MENU",
 															"m_eventClass":	"wxDataViewEvent",
-															"m_eventHandler":	"wxDataViewEventHandler",
 															"m_functionNameAndSignature":	"OnCallStackMenu(wxDataViewEvent& event)",
 															"m_description":	"Process a wxEVT_COMMAND_DATAVIEW_ITEM_CONTEXT_MENU event generated when the user right clicks inside the control.\nNotice that this menu is generated even if the click didn't occur on any valid item, in this case wxDataViewEvent::GetItem() simply returns an invalid item.",
 															"m_noBody":	false
@@ -10018,6 +10113,10 @@
 													"m_label":	"Style:",
 													"m_value":	""
 												}, {
+													"type":	"bool",
+													"m_label":	"Keep as a class member",
+													"m_value":	false
+												}, {
 													"type":	"choice",
 													"m_label":	"Orientation:",
 													"m_selection":	0,
@@ -10147,7 +10246,6 @@
 													"m_events":	[{
 															"m_eventName":	"wxEVT_COMMAND_DATAVIEW_ITEM_ACTIVATED",
 															"m_eventClass":	"wxDataViewEvent",
-															"m_eventHandler":	"wxDataViewEventHandler",
 															"m_functionNameAndSignature":	"OnBreakpointItemActivated(wxDataViewEvent& event)",
 															"m_description":	"Process a wxEVT_COMMAND_DATAVIEW_ITEM_ACTIVATED event.\nThis event is triggered by double clicking an item or pressing some special key (usually \"Enter\") when it is focused",
 															"m_noBody":	false
@@ -10392,6 +10490,10 @@
 							"m_label":	"Style:",
 							"m_value":	""
 						}, {
+							"type":	"bool",
+							"m_label":	"Keep as a class member",
+							"m_value":	false
+						}, {
 							"type":	"choice",
 							"m_label":	"Orientation:",
 							"m_selection":	0,
@@ -10575,6 +10677,10 @@
 							"m_label":	"Style:",
 							"m_value":	""
 						}, {
+							"type":	"bool",
+							"m_label":	"Keep as a class member",
+							"m_value":	false
+						}, {
 							"type":	"choice",
 							"m_label":	"Orientation:",
 							"m_selection":	0,
@@ -10750,6 +10856,10 @@
 													"m_label":	"Style:",
 													"m_value":	""
 												}, {
+													"type":	"bool",
+													"m_label":	"Keep as a class member",
+													"m_value":	false
+												}, {
 													"type":	"choice",
 													"m_label":	"Orientation:",
 													"m_selection":	0,
@@ -10799,11 +10909,11 @@
 														}, {
 															"type":	"string",
 															"m_label":	"Class Name:",
-															"m_value":	""
+															"m_value":	"clThemedSTC"
 														}, {
 															"type":	"string",
 															"m_label":	"Include File:",
-															"m_value":	""
+															"m_value":	"clThemedSTC.hpp"
 														}, {
 															"type":	"string",
 															"m_label":	"Style:",
@@ -10895,6 +11005,10 @@
 															"type":	"string",
 															"m_label":	"Style:",
 															"m_value":	""
+														}, {
+															"type":	"bool",
+															"m_label":	"Keep as a class member",
+															"m_value":	false
 														}, {
 															"type":	"choice",
 															"m_label":	"Orientation:",
@@ -10990,7 +11104,6 @@
 															"m_events":	[{
 																	"m_eventName":	"wxEVT_COMMAND_TEXT_ENTER",
 																	"m_eventClass":	"wxCommandEvent",
-																	"m_eventHandler":	"wxCommandEventHandler",
 																	"m_functionNameAndSignature":	"OnEnter(wxCommandEvent& event)",
 																	"m_description":	"Respond to a wxEVT_COMMAND_TEXT_ENTER event, generated when enter is pressed in a text control\n(which must have wxTE_PROCESS_ENTER style for this event to be generated).",
 																	"m_noBody":	false
@@ -11085,14 +11198,12 @@
 															"m_events":	[{
 																	"m_eventName":	"wxEVT_COMMAND_BUTTON_CLICKED",
 																	"m_eventClass":	"wxCommandEvent",
-																	"m_eventHandler":	"wxCommandEventHandler",
 																	"m_functionNameAndSignature":	"OnSend(wxCommandEvent& event)",
 																	"m_description":	"Process a wxEVT_COMMAND_BUTTON_CLICKED event, when the button is clicked.",
 																	"m_noBody":	false
 																}, {
 																	"m_eventName":	"wxEVT_UPDATE_UI",
 																	"m_eventClass":	"wxUpdateUIEvent",
-																	"m_eventHandler":	"wxUpdateUIEventHandler",
 																	"m_functionNameAndSignature":	"OnSendUI(wxUpdateUIEvent& event)",
 																	"m_description":	"Process a wxEVT_UPDATE_UI event",
 																	"m_noBody":	false
@@ -11204,6 +11315,10 @@
 													"m_label":	"Style:",
 													"m_value":	""
 												}, {
+													"type":	"bool",
+													"m_label":	"Keep as a class member",
+													"m_value":	false
+												}, {
 													"type":	"choice",
 													"m_label":	"Orientation:",
 													"m_selection":	0,
@@ -11253,11 +11368,11 @@
 														}, {
 															"type":	"string",
 															"m_label":	"Class Name:",
-															"m_value":	""
+															"m_value":	"clThemedSTC"
 														}, {
 															"type":	"string",
 															"m_label":	"Include File:",
-															"m_value":	""
+															"m_value":	"clThemedSTC.hpp"
 														}, {
 															"type":	"string",
 															"m_label":	"Style:",
@@ -11349,6 +11464,10 @@
 															"type":	"string",
 															"m_label":	"Style:",
 															"m_value":	""
+														}, {
+															"type":	"bool",
+															"m_label":	"Keep as a class member",
+															"m_value":	false
 														}, {
 															"type":	"choice",
 															"m_label":	"Orientation:",
@@ -11444,7 +11563,6 @@
 															"m_events":	[{
 																	"m_eventName":	"wxEVT_COMMAND_TEXT_ENTER",
 																	"m_eventClass":	"wxCommandEvent",
-																	"m_eventHandler":	"wxCommandEventHandler",
 																	"m_functionNameAndSignature":	"OnSendXDebugCommand(wxCommandEvent& event)",
 																	"m_description":	"Respond to a wxEVT_COMMAND_TEXT_ENTER event, generated when enter is pressed in a text control\n(which must have wxTE_PROCESS_ENTER style for this event to be generated).",
 																	"m_noBody":	false
@@ -11539,14 +11657,12 @@
 															"m_events":	[{
 																	"m_eventName":	"wxEVT_COMMAND_BUTTON_CLICKED",
 																	"m_eventClass":	"wxCommandEvent",
-																	"m_eventHandler":	"wxCommandEventHandler",
 																	"m_functionNameAndSignature":	"OnSendXDebugCommand(wxCommandEvent& event)",
 																	"m_description":	"Process a wxEVT_COMMAND_BUTTON_CLICKED event, when the button is clicked.",
 																	"m_noBody":	false
 																}, {
 																	"m_eventName":	"wxEVT_UPDATE_UI",
 																	"m_eventClass":	"wxUpdateUIEvent",
-																	"m_eventHandler":	"wxUpdateUIEventHandler",
 																	"m_functionNameAndSignature":	"OnSendXDebugCommandUI(wxUpdateUIEvent& event)",
 																	"m_description":	"Process a wxEVT_UPDATE_UI event",
 																	"m_noBody":	false
@@ -11690,6 +11806,10 @@
 							"m_label":	"Style:",
 							"m_value":	""
 						}, {
+							"type":	"bool",
+							"m_label":	"Keep as a class member",
+							"m_value":	false
+						}, {
 							"type":	"choice",
 							"m_label":	"Orientation:",
 							"m_selection":	0,
@@ -11772,7 +11892,6 @@
 							"m_events":	[{
 									"m_eventName":	"wxEVT_COMMAND_CHOICE_SELECTED",
 									"m_eventClass":	"wxCommandEvent",
-									"m_eventHandler":	"wxCommandEventHandler",
 									"m_functionNameAndSignature":	"OnDebugMethodChanged(wxCommandEvent& event)",
 									"m_description":	"Process a wxEVT_COMMAND_CHOICE_SELECTED event, when an item on the list is selected.",
 									"m_noBody":	false
@@ -11952,6 +12071,10 @@
 													"m_label":	"Style:",
 													"m_value":	""
 												}, {
+													"type":	"bool",
+													"m_label":	"Keep as a class member",
+													"m_value":	false
+												}, {
 													"type":	"choice",
 													"m_label":	"Orientation:",
 													"m_selection":	0,
@@ -11978,6 +12101,10 @@
 															"type":	"string",
 															"m_label":	"Style:",
 															"m_value":	""
+														}, {
+															"type":	"bool",
+															"m_label":	"Keep as a class member",
+															"m_value":	false
 														}, {
 															"type":	"string",
 															"m_label":	"# Columns:",
@@ -12268,6 +12395,10 @@
 													"m_label":	"Style:",
 													"m_value":	""
 												}, {
+													"type":	"bool",
+													"m_label":	"Keep as a class member",
+													"m_value":	false
+												}, {
 													"type":	"choice",
 													"m_label":	"Orientation:",
 													"m_selection":	0,
@@ -12294,6 +12425,10 @@
 															"type":	"string",
 															"m_label":	"Style:",
 															"m_value":	""
+														}, {
+															"type":	"bool",
+															"m_label":	"Keep as a class member",
+															"m_value":	false
 														}, {
 															"type":	"string",
 															"m_label":	"# Columns:",
@@ -12483,7 +12618,6 @@
 															"m_events":	[{
 																	"m_eventName":	"wxEVT_UPDATE_UI",
 																	"m_eventClass":	"wxUpdateUIEvent",
-																	"m_eventHandler":	"wxUpdateUIEventHandler",
 																	"m_functionNameAndSignature":	"OnScriptToDebugUI(wxUpdateUIEvent& event)",
 																	"m_description":	"Process a wxEVT_UPDATE_UI event",
 																	"m_noBody":	false
@@ -12584,7 +12718,6 @@
 															"m_events":	[{
 																	"m_eventName":	"wxEVT_COMMAND_CHECKBOX_CLICKED",
 																	"m_eventClass":	"wxCommandEvent",
-																	"m_eventHandler":	"wxCommandEventHandler",
 																	"m_functionNameAndSignature":	"OnUseActiveEditor(wxCommandEvent& event)",
 																	"m_description":	"Process a wxEVT_COMMAND_CHECKBOX_CLICKED event, when the checkbox is clicked.",
 																	"m_noBody":	false
@@ -12689,7 +12822,6 @@
 									"m_events":	[{
 											"m_eventName":	"wxEVT_UPDATE_UI",
 											"m_eventClass":	"wxUpdateUIEvent",
-											"m_eventHandler":	"wxUpdateUIEventHandler",
 											"m_functionNameAndSignature":	"OnOkUI(wxUpdateUIEvent& event)",
 											"m_description":	"Process a wxEVT_UPDATE_UI event",
 											"m_noBody":	false
@@ -12843,14 +12975,12 @@
 			"m_events":	[{
 					"m_eventName":	"wxEVT_WIZARD_FINISHED",
 					"m_eventClass":	"wxWizardEvent",
-					"m_eventHandler":	"wxWizardEventHandler",
 					"m_functionNameAndSignature":	"OnFinish(wxWizardEvent& event)",
 					"m_description":	"The wizard finished button was pressed.",
 					"m_noBody":	false
 				}, {
 					"m_eventName":	"wxEVT_WIZARD_PAGE_CHANGING",
 					"m_eventClass":	"wxWizardEvent",
-					"m_eventHandler":	"wxWizardEventHandler",
 					"m_functionNameAndSignature":	"OnPageChanging(wxWizardEvent& event)",
 					"m_description":	"The page is being changed (this event can be vetoed).",
 					"m_noBody":	false
@@ -12945,6 +13075,10 @@
 									"type":	"string",
 									"m_label":	"Style:",
 									"m_value":	""
+								}, {
+									"type":	"bool",
+									"m_label":	"Keep as a class member",
+									"m_value":	false
 								}, {
 									"type":	"choice",
 									"m_label":	"Orientation:",
@@ -13220,6 +13354,10 @@
 									"m_label":	"Style:",
 									"m_value":	""
 								}, {
+									"type":	"bool",
+									"m_label":	"Keep as a class member",
+									"m_value":	false
+								}, {
 									"type":	"choice",
 									"m_label":	"Orientation:",
 									"m_selection":	0,
@@ -13338,6 +13476,10 @@
 											"type":	"string",
 											"m_label":	"Style:",
 											"m_value":	""
+										}, {
+											"type":	"bool",
+											"m_label":	"Keep as a class member",
+											"m_value":	false
 										}, {
 											"type":	"string",
 											"m_label":	"# Columns:",
@@ -13527,7 +13669,6 @@
 											"m_events":	[{
 													"m_eventName":	"wxEVT_COMMAND_TEXT_UPDATED",
 													"m_eventClass":	"wxCommandEvent",
-													"m_eventHandler":	"wxCommandEventHandler",
 													"m_functionNameAndSignature":	"OnNameUpdated(wxCommandEvent& event)",
 													"m_description":	"Respond to a wxEVT_COMMAND_TEXT_UPDATED event, generated when the text changes.\nNotice that this event will be sent when the text controls contents changes\n - whether this is due to user input or comes from the program itself\n(for example, if SetValue() is called); see ChangeValue() for a function which does not send this event.",
 													"m_noBody":	false
@@ -13684,7 +13825,6 @@
 											"m_events":	[{
 													"m_eventName":	"wxEVT_COMMAND_DIRPICKER_CHANGED",
 													"m_eventClass":	"wxFileDirPickerEvent",
-													"m_eventHandler":	"wxFileDirPickerEventHandler",
 													"m_functionNameAndSignature":	"OnDirSelected(wxFileDirPickerEvent& event)",
 													"m_description":	"The user changed the directory selected in the control either using the button or using text control\n(see wxDIRP_USE_TEXTCTRL; note that in this case the event is fired only if the user's input is valid, e.g. an existing directory path).",
 													"m_noBody":	false
@@ -13785,7 +13925,6 @@
 											"m_events":	[{
 													"m_eventName":	"wxEVT_COMMAND_CHECKBOX_CLICKED",
 													"m_eventClass":	"wxCommandEvent",
-													"m_eventHandler":	"wxCommandEventHandler",
 													"m_functionNameAndSignature":	"OnCheckSeparateFolder(wxCommandEvent& event)",
 													"m_description":	"Process a wxEVT_COMMAND_CHECKBOX_CLICKED event, when the checkbox is clicked.",
 													"m_noBody":	false
@@ -14085,6 +14224,10 @@
 									"m_label":	"Style:",
 									"m_value":	""
 								}, {
+									"type":	"bool",
+									"m_label":	"Keep as a class member",
+									"m_value":	false
+								}, {
 									"type":	"choice",
 									"m_label":	"Orientation:",
 									"m_selection":	0,
@@ -14203,6 +14346,10 @@
 											"type":	"string",
 											"m_label":	"Style:",
 											"m_value":	""
+										}, {
+											"type":	"bool",
+											"m_label":	"Keep as a class member",
+											"m_value":	false
 										}, {
 											"type":	"string",
 											"m_label":	"# Columns:",
@@ -14627,6 +14774,10 @@
 									"m_label":	"Style:",
 									"m_value":	""
 								}, {
+									"type":	"bool",
+									"m_label":	"Keep as a class member",
+									"m_value":	false
+								}, {
 									"type":	"choice",
 									"m_label":	"Orientation:",
 									"m_selection":	0,
@@ -14746,6 +14897,10 @@
 											"m_label":	"Style:",
 											"m_value":	""
 										}, {
+											"type":	"bool",
+											"m_label":	"Keep as a class member",
+											"m_value":	false
+										}, {
 											"type":	"choice",
 											"m_label":	"Orientation:",
 											"m_selection":	0,
@@ -14772,6 +14927,10 @@
 													"type":	"string",
 													"m_label":	"Style:",
 													"m_value":	""
+												}, {
+													"type":	"bool",
+													"m_label":	"Keep as a class member",
+													"m_value":	false
 												}, {
 													"type":	"choice",
 													"m_label":	"Orientation:",
@@ -14943,7 +15102,6 @@
 													"m_events":	[{
 															"m_eventName":	"wxEVT_COMMAND_BUTTON_CLICKED",
 															"m_eventClass":	"wxCommandEvent",
-															"m_eventHandler":	"wxCommandEventHandler",
 															"m_functionNameAndSignature":	"OnBrowseForCCFolder(wxCommandEvent& event)",
 															"m_description":	"Process a wxEVT_COMMAND_BUTTON_CLICKED event, when the button is clicked.",
 															"m_noBody":	false
@@ -15158,14 +15316,12 @@
 			"m_events":	[{
 					"m_eventName":	"wxEVT_WIZARD_PAGE_CHANGING",
 					"m_eventClass":	"wxWizardEvent",
-					"m_eventHandler":	"wxWizardEventHandler",
 					"m_functionNameAndSignature":	"OnPageChanging(wxWizardEvent& event)",
 					"m_description":	"The page is being changed (this event can be vetoed).",
 					"m_noBody":	false
 				}, {
 					"m_eventName":	"wxEVT_WIZARD_FINISHED",
 					"m_eventClass":	"wxWizardEvent",
-					"m_eventHandler":	"wxWizardEventHandler",
 					"m_functionNameAndSignature":	"OnFinished(wxWizardEvent& event)",
 					"m_description":	"The wizard finished button was pressed.",
 					"m_noBody":	false
@@ -15260,6 +15416,10 @@
 									"type":	"string",
 									"m_label":	"Style:",
 									"m_value":	""
+								}, {
+									"type":	"bool",
+									"m_label":	"Keep as a class member",
+									"m_value":	false
 								}, {
 									"type":	"choice",
 									"m_label":	"Orientation:",
@@ -15379,6 +15539,10 @@
 											"type":	"string",
 											"m_label":	"Style:",
 											"m_value":	""
+										}, {
+											"type":	"bool",
+											"m_label":	"Keep as a class member",
+											"m_value":	false
 										}, {
 											"type":	"string",
 											"m_label":	"# Columns:",
@@ -15661,6 +15825,10 @@
 									"m_label":	"Style:",
 									"m_value":	""
 								}, {
+									"type":	"bool",
+									"m_label":	"Keep as a class member",
+									"m_value":	false
+								}, {
 									"type":	"choice",
 									"m_label":	"Orientation:",
 									"m_selection":	0,
@@ -15779,6 +15947,10 @@
 											"type":	"string",
 											"m_label":	"Style:",
 											"m_value":	""
+										}, {
+											"type":	"bool",
+											"m_label":	"Keep as a class member",
+											"m_value":	false
 										}, {
 											"type":	"string",
 											"m_label":	"# Columns:",
@@ -16061,6 +16233,10 @@
 									"m_label":	"Style:",
 									"m_value":	""
 								}, {
+									"type":	"bool",
+									"m_label":	"Keep as a class member",
+									"m_value":	false
+								}, {
 									"type":	"choice",
 									"m_label":	"Orientation:",
 									"m_selection":	0,
@@ -16179,6 +16355,10 @@
 											"type":	"string",
 											"m_label":	"Style:",
 											"m_value":	""
+										}, {
+											"type":	"bool",
+											"m_label":	"Keep as a class member",
+											"m_value":	false
 										}, {
 											"type":	"string",
 											"m_label":	"# Columns:",
@@ -16460,6 +16640,10 @@
 									"type":	"string",
 									"m_label":	"Style:",
 									"m_value":	""
+								}, {
+									"type":	"bool",
+									"m_label":	"Keep as a class member",
+									"m_value":	false
 								}, {
 									"type":	"choice",
 									"m_label":	"Orientation:",
@@ -16856,6 +17040,10 @@
 							"m_label":	"Style:",
 							"m_value":	""
 						}, {
+							"type":	"bool",
+							"m_label":	"Keep as a class member",
+							"m_value":	false
+						}, {
 							"type":	"choice",
 							"m_label":	"Orientation:",
 							"m_selection":	0,
@@ -17033,6 +17221,10 @@
 									"type":	"string",
 									"m_label":	"Style:",
 									"m_value":	""
+								}, {
+									"type":	"bool",
+									"m_label":	"Keep as a class member",
+									"m_value":	false
 								}, {
 									"type":	"string",
 									"m_label":	"# Columns:",

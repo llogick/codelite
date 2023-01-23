@@ -7,7 +7,7 @@
 
 #include <unordered_map>
 
-class WXDLLIMPEXP_SDK clEnhancedToolBar : public clToolBar
+class WXDLLIMPEXP_SDK clEnhancedToolBar : public clToolBarGeneric
 {
 public:
     struct Button {
@@ -56,5 +56,4 @@ public:
      */
     void SetButtonAction(wxWindowID buttonId, wxWindowID actionID);
 };
-
 #endif // CLENHANCEDTOOLBAR_HPP

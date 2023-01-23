@@ -39,10 +39,4 @@ target_link_libraries(${PLUGIN_NAME}
                       dapcxx)
 # Installation destination
 CL_INSTALL_PLUGIN(${PLUGIN_NAME})
-
-if(APPLE)
-    install(TARGETS dapcxx DESTINATION ${CMAKE_BINARY_DIR}/codelite.app/Contents/MacOS/)
-    CL_INSTALL_NAME_TOOL_STD(${CMAKE_BINARY_DIR}/codelite.app/Contents/MacOS/libdapcxx.dylib)
-else()
-    install(TARGETS dapcxx DESTINATION ${PLUGINS_DIR})
-endif()
+codelite_install_library_target(dapcxx)

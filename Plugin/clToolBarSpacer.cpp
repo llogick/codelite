@@ -1,6 +1,6 @@
 #include "clToolBarSpacer.h"
 
-clToolBarSpacer::clToolBarSpacer(clToolBar* parent)
+clToolBarSpacer::clToolBarSpacer(clToolBarGeneric* parent)
     : clToolBarButtonBase(parent, wxID_SEPARATOR, INVALID_BITMAP_ID, "", kDisabled | kSpacer)
 {
 }

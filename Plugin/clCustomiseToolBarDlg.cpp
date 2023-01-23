@@ -6,8 +6,9 @@
 #include "editor_config.h"
 #include "globals.h"
 #include "optionsconfig.h"
+#include "wxCustomControls.hpp"
 
-clCustomiseToolBarDlg::clCustomiseToolBarDlg(wxWindow* parent, clToolBar* tb)
+clCustomiseToolBarDlg::clCustomiseToolBarDlg(wxWindow* parent, clToolBarGeneric* tb)
     : clCustomiseToolBarBaseDlg(parent)
     , m_toolbar(tb)
     , m_buttons(m_toolbar->GetButtons())

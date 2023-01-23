@@ -20,7 +20,7 @@
 class WXDLLIMPEXP_SDK clToolBarButtonBase
 {
 protected:
-    clToolBar* m_toolbar = nullptr;
+    clToolBarGeneric* m_toolbar = nullptr;
     wxWindowID m_id = wxID_ANY;
     size_t m_bmpId = INVALID_BITMAP_ID;
     wxString m_label;
@@ -49,7 +49,7 @@ public:
     };
 
 public:
-    clToolBarButtonBase(clToolBar* parent, wxWindowID id, int bmpId = wxNOT_FOUND, const wxString& label = "",
+    clToolBarButtonBase(clToolBarGeneric* parent, wxWindowID id, int bmpId = wxNOT_FOUND, const wxString& label = "",
                         size_t flags = 0);
     virtual ~clToolBarButtonBase();
 
@@ -98,7 +98,7 @@ public:
      */
     bool IsMenuButton() const { return m_flags & kHasMenu; }
     wxWindowID GetId() const { return m_id; }
-    clToolBar* GetToolbar() { return m_toolbar; }
+    clToolBarGeneric* GetToolbar() { return m_toolbar; }
     void SetMenu(wxMenu* menu);
     wxMenu* GetMenu() const { return m_menu; }
     virtual bool Contains(const wxPoint& pt) const { return m_buttonRect.Contains(pt); }
@@ -116,6 +116,7 @@ public:
     void ClearRenderFlags() { m_renderFlags = 0; }
     const wxRect& GetButtonRect() const { return m_buttonRect; }
     bool IsChecked() const { return (m_flags & kChecked); }
+    bool IsToggled() const { return IsChecked(); }
     void Check(bool b)
     {
         EnableFlag(kChecked, b);
@@ -138,5 +139,4 @@ public:
 
     template <typename T> T* Cast() { return dynamic_cast<T*>(this); }
 };
-
 #endif // CLTOOLBARBUTTONBASE_H

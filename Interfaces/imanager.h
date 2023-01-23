@@ -28,10 +28,9 @@
 
 #include "Notebook.h"
 #include "bitmap_loader.h"
-#include "clMenuBar.hpp"
 #include "clStatusBar.h"
 #include "clTab.h"
-#include "clThemedMenuBar.hpp"
+#include "clToolBar.h"
 #include "debugger.h"
 #include "iconfigtool.h"
 #include "ieditor.h"
@@ -57,7 +56,6 @@ class BuildSettingsConfig;
 class NavMgr;
 class IMacroManager;
 class wxAuiManager;
-class clToolBar;
 
 //--------------------------
 // Auxulary class
@@ -132,9 +130,11 @@ public:
         }
     }
 
-    virtual clToolBar* GetToolBar() = 0;
+    /// Return the plugins' toolbar managed by CodeLite
+    virtual clToolBarGeneric* GetToolBar() = 0;
 
-    virtual clMenuBar* GetMenuBar() = 0;
+    /// Return applicaion menu bar
+    virtual wxMenuBar* GetMenuBar() = 0;
 
     /**
      * @brief show the output pane and if provided, select 'selectedWindow'

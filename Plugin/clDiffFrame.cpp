@@ -25,13 +25,10 @@ clDiffFrame::clDiffFrame(wxWindow* parent, const DiffSideBySidePanel::FileInfo& 
     WindowAttrManager::Load(this);
 
     wxIconBundle b;
-    {
-        wxIcon icn;
-        icn.CopyFromBitmap(clGetManager()->GetStdIcons()->LoadBitmap("diff"));
-        b.AddIcon(icn);
+    if(clGetManager()->GetStdIcons()->GetIconBundle("diff", &b)) {
+        SetIcons(b);
     }
     CreateMenuBar();
-    SetIcons(b);
     ::clSetTLWindowBestSizeAndPosition(this);
 }
 
@@ -119,7 +116,7 @@ void clDiffFrame::OnClose(wxCommandEvent& event)
 void clDiffFrame::OnCharHook(wxKeyEvent& event)
 {
     event.Skip();
-    if(event.GetKeyCode() == WXK_ESCAPE) {
+    if(event.GetKeyCode() == WXK_ESCAPE && !m_diffView->HasFindBarFocus()) {
         Close();
     }
 }

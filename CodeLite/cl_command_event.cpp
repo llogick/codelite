@@ -55,6 +55,7 @@ clCommandEvent& clCommandEvent::operator=(const clCommandEvent& src)
     m_oldName = src.m_oldName;
     m_lineNumber = src.m_lineNumber;
     m_selected = src.m_selected;
+    m_stringRaw = src.m_stringRaw;
 
     // Copy wxCommandEvent members here
     m_eventType = src.m_eventType;
@@ -186,6 +187,7 @@ clBuildEvent& clBuildEvent::operator=(const clBuildEvent& src)
     m_cleanLog = src.m_cleanLog;
     m_flags = src.m_flags;
     m_toolchain = src.m_toolchain;
+    m_buildDir = src.m_buildDir;
     return *this;
 }
 
@@ -556,7 +558,6 @@ clLanguageServerEvent& clLanguageServerEvent::operator=(const clLanguageServerEv
     m_lspName = src.m_lspName;
     m_lspCommand = src.m_lspCommand;
     m_flags = src.m_flags;
-    m_sshAccount = src.m_sshAccount;
     m_priority = src.m_priority;
     m_connectionString = src.m_connectionString;
     m_enviroment = src.m_enviroment;

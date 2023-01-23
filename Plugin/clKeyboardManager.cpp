@@ -23,8 +23,7 @@ wxDEFINE_EVENT(wxEVT_KEYBOARD_ACCEL_INIT_DONE, clCommandEvent);
 
 clKeyboardManager::clKeyboardManager()
 {
-    EventNotifier::Get()->Connect(wxEVT_INIT_DONE, wxCommandEventHandler(clKeyboardManager::OnStartupCompleted), NULL,
-                                  this);
+    EventNotifier::Get()->Bind(wxEVT_INIT_DONE, &clKeyboardManager::OnStartupCompleted, this);
 
     // A-Z
     for(size_t i = 65; i < 91; ++i) {
@@ -103,8 +102,7 @@ clKeyboardManager::clKeyboardManager()
 clKeyboardManager::~clKeyboardManager()
 {
     Save();
-    EventNotifier::Get()->Disconnect(wxEVT_INIT_DONE, wxCommandEventHandler(clKeyboardManager::OnStartupCompleted),
-                                     NULL, this);
+    EventNotifier::Get()->Unbind(wxEVT_INIT_DONE, &clKeyboardManager::OnStartupCompleted, this);
 }
 
 static clKeyboardManager* m_mgr = NULL;
@@ -179,7 +177,7 @@ void clKeyboardManager::DoUpdateFrame(wxFrame* frame, MenuItemDataIntMap_t& acce
     std::vector<wxAcceleratorEntry> table;
 
     // Update menus. If a match is found remove it from the 'accel' table
-    clMenuBar* menuBar = clGetManager()->GetMenuBar();
+    auto menuBar = clGetManager()->GetMenuBar();
     if(!menuBar) {
         clDEBUG() << "No menu bar found!" << clEndl;
         return;
@@ -187,7 +185,7 @@ void clKeyboardManager::DoUpdateFrame(wxFrame* frame, MenuItemDataIntMap_t& acce
 
     for(size_t i = 0; i < menuBar->GetMenuCount(); ++i) {
         wxMenu* menu = menuBar->GetMenu(i);
-        clDEBUG1() << "clKeyboardManager: updating menu" << menuBar->GetMenuLabel(i) << clEndl;
+        LOG_IF_TRACE { clDEBUG1() << "clKeyboardManager: updating menu" << menuBar->GetMenuLabel(i) << clEndl; }
         DoUpdateMenu(menu, accels, table);
     }
 
@@ -228,19 +226,7 @@ void clKeyboardManager::Initialize()
     clDEBUG() << "Keyboard manager: Initializing keyboard manager" << endl;
     // Load old format
     clKeyboardBindingConfig config;
-    if(!config.Exists()) {
-        clDEBUG() << "Keyboard manager: No configurtion found - importing old settings" << endl;
-        // Decide which file we want to load, take the user settings file first
-        wxFileName fnOldSettings(clStandardPaths::Get().GetUserDataDir(), "accelerators.conf");
-        fnOldSettings.AppendDir("config");
-        if(fnOldSettings.Exists()) {
-            // Apply the old settings to the menus
-            m_accelTable = DoLoadAccelerators(fnOldSettings);
-
-            wxLogNull noLog;
-            clRemoveFile(fnOldSettings.GetFullPath());
-        }
-    } else {
+    if(config.Exists()) {
         config.Load();
         m_accelTable = config.GetBindings();
     }
@@ -440,8 +426,8 @@ MenuItemDataMap_t clKeyboardManager::DoLoadAccelerators(const wxFileName& filena
 
 bool clKeyboardShortcut::operator==(const clKeyboardShortcut& rhs) const
 {
-    return this->GetCtrl() == rhs.GetCtrl() && this->GetAlt() == rhs.GetAlt() && this->GetShift() == rhs.GetShift() &&
-           this->GetKeyCode() == rhs.GetKeyCode();
+    return this->GetControl() == rhs.GetControl() && this->GetAlt() == rhs.GetAlt() &&
+           this->GetShift() == rhs.GetShift() && this->GetKeyCode() == rhs.GetKeyCode();
 }
 
 bool clKeyboardShortcut::operator<(const clKeyboardShortcut& rhs) const
@@ -452,8 +438,8 @@ bool clKeyboardShortcut::operator<(const clKeyboardShortcut& rhs) const
     if(this->GetAlt() != rhs.GetAlt()) {
         return this->GetAlt() < rhs.GetAlt();
     }
-    if(this->GetCtrl() != rhs.GetCtrl()) {
-        return this->GetCtrl() < rhs.GetCtrl();
+    if(this->GetControl() != rhs.GetControl()) {
+        return this->GetControl() < rhs.GetControl();
     }
     return this->GetKeyCode() < rhs.GetKeyCode();
 }
@@ -462,7 +448,7 @@ bool clKeyboardShortcut::IsOk() const { return !m_keyCode.IsEmpty(); }
 
 void clKeyboardShortcut::Clear()
 {
-    m_ctrl = false;
+    m_control_type = WXK_NONE;
     m_alt = false;
     m_shift = false;
     m_keyCode.Clear();
@@ -511,32 +497,64 @@ void clKeyboardShortcut::FromString(const wxString& accelString)
     wxArrayString tokens = Tokenize(accelString);
     for(size_t i = 0; i < tokens.GetCount(); ++i) {
         wxString token = tokens.Item(i);
-        if(token.IsSameAs("ctrl", false)) {
-            m_ctrl = true;
+        if(token.IsSameAs("rawctrl", false)) {
+            // WXK_RAW_CONTROL == WXK_CONTROL on non macOS
+            m_control_type = WXK_RAW_CONTROL;
             ++i;
+
+        } else if(token.IsSameAs("ctrl", false)) {
+            // CMD or Control
+            m_control_type = WXK_CONTROL;
+            ++i;
+
         } else if(token.IsSameAs("alt", false)) {
             m_alt = true;
             ++i;
+
         } else if(token.IsSameAs("shift", false)) {
             m_shift = true;
             ++i;
+
         } else {
             m_keyCode = token.MakeUpper();
         }
     }
 }
 
-wxString clKeyboardShortcut::ToString() const
+wxString clKeyboardShortcut::to_string(bool for_ui) const
 {
+    wxUnusedVar(for_ui);
+
     // An accelerator must contain a key code
     if(!IsOk()) {
         return "";
     }
 
     wxString str;
-    if(m_ctrl) {
+    if(m_control_type == WXK_CONTROL) {
+#ifdef __WXMAC__
+        if(for_ui) {
+            str << "Cmd-";
+
+        } else {
+            str << "Ctrl-";
+        }
+#else
         str << "Ctrl-";
+#endif
+
+    } else if(m_control_type == WXK_RAW_CONTROL) {
+#ifdef __WXMAC__
+        if(for_ui) {
+            str << "Ctrl-";
+        } else {
+            str << "RawCtrl-";
+        }
+#else
+        str << "Ctrl-";
+#endif
     }
+
     if(m_alt) {
         str << "Alt-";
     }
@@ -546,3 +564,6 @@ wxString clKeyboardShortcut::ToString() const
     str << m_keyCode;
     return str;
 }
+
+wxString clKeyboardShortcut::ToString() const { return to_string(false); }
+wxString clKeyboardShortcut::DisplayString() const { return to_string(true); }

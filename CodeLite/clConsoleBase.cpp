@@ -1,5 +1,6 @@
 #include "clConsoleBase.h"
 
+#include "clConsoleAlacritty.hpp"
 #include "clConsoleCMD.h"
 #include "clConsoleCodeLiteTerminal.h"
 #include "clConsoleGnomeTerminal.h"
@@ -54,12 +55,16 @@ clConsoleBase::Ptr_t clConsoleBase::GetTerminal()
 #ifdef __WXMSW__
     if(terminalName.CmpNoCase("codelite-terminal") == 0) {
         terminal.reset(new clConsoleCodeLiteTerminal());
+    } else if(terminalName.CmpNoCase("alacritty") == 0) {
+        terminal.reset(new clConsoleAlacritty());
     } else {
         terminal.reset(new clConsoleCMD());
     }
 #elif defined(__WXGTK__)
     if(terminalName.CmpNoCase("konsole") == 0) {
         terminal.reset(new clConsoleKonsole());
+    } else if(terminalName.CmpNoCase("alacritty") == 0) {
+        terminal.reset(new clConsoleAlacritty());
     } else if(terminalName.CmpNoCase("lxterminal") == 0) {
         terminal.reset(new clConsoleLXTerminal());
     } else if(terminalName.CmpNoCase("mate-terminal") == 0) {
@@ -77,14 +82,12 @@ clConsoleBase::Ptr_t clConsoleBase::GetTerminal()
         terminal.reset(new clConsoleGnomeTerminal());
     }
 #else
-    if(terminalName.CmpNoCase("codelite-terminal") == 0) {
-        terminal.reset(new clConsoleCodeLiteTerminal());
-    } else {
-        clConsoleOSXTerminal* t = new clConsoleOSXTerminal();
-        terminal.reset(t);
-        if(terminalName.CmpNoCase("iTerm2") == 0) {
-            t->SetTerminalApp("iTerm");
-        }
+    clConsoleOSXTerminal* t = new clConsoleOSXTerminal();
+    terminal.reset(t);
+    if(terminalName.CmpNoCase("iTerm2") == 0) {
+        t->SetTerminalApp("iTerm");
+    } else if(terminalName.CmpNoCase("alacritty") == 0) {
+        terminal.reset(new clConsoleAlacritty());
     }
 #endif
     return terminal;
@@ -95,6 +98,7 @@ wxArrayString clConsoleBase::GetAvailaleTerminals()
     wxArrayString terminals;
 #ifdef __WXMSW__
     terminals.Add("CMD");
+    terminals.Add("codelite-terminal");
 #elif defined(__WXGTK__)
     terminals.Add("konsole");
     terminals.Add("gnome-terminal");
@@ -103,11 +107,12 @@ wxArrayString clConsoleBase::GetAvailaleTerminals()
     terminals.Add("qterminal");
     terminals.Add("xfce4-terminal");
     terminals.Add("rxvt-unicode");
+    terminals.Add("codelite-terminal");
 #else
     terminals.Add("Terminal");
     terminals.Add("iTerm2");
 #endif
-    terminals.Add("codelite-terminal");
+    terminals.Add("alacritty");
     return terminals;
 }
 

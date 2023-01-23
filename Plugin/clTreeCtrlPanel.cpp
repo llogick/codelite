@@ -55,12 +55,11 @@ clTreeCtrlPanel::clTreeCtrlPanel(wxWindow* parent)
     ::MSWSetNativeTheme(GetTreeCtrl());
     GetTreeCtrl()->SetFont(DrawingUtils::GetDefaultGuiFont());
 
-    m_toolbar = new clEnhancedToolBar(this);
+    m_toolbar = new clToolBar(this);
     GetSizer()->Insert(0, m_toolbar, 0, wxEXPAND);
-    clBitmapList* images = new clBitmapList;
+    auto images = m_toolbar->GetBitmapsCreateIfNeeded();
     m_toolbar->AddTool(XRCID("link_editor"), _("Link Editor"), images->Add("link_editor"), "", wxITEM_CHECK);
     m_toolbar->AddTool(XRCID("collapse_folders"), _("Fold Tree"), images->Add("fold"), "", wxITEM_NORMAL);
-    m_toolbar->AssignBitmaps(images);
 
     Bind(
         wxEVT_TOOL,
@@ -141,7 +140,7 @@ void clTreeCtrlPanel::OnContextMenu(wxTreeEvent& event)
         menu.Append(XRCID("copy-path"), _("Copy path"));
         menu.Bind(
             wxEVT_MENU,
-            [this, cd](wxCommandEvent& event) {
+            [cd](wxCommandEvent& event) {
                 event.Skip();
                 CHECK_PTR_RET(cd);
                 ::CopyToClipboard(cd->GetPath());
@@ -196,7 +195,7 @@ void clTreeCtrlPanel::OnContextMenu(wxTreeEvent& event)
         menu.Append(XRCID("copy-path"), _("Copy path"));
         menu.Bind(
             wxEVT_MENU,
-            [this, cd](wxCommandEvent& event) {
+            [cd](wxCommandEvent& event) {
                 event.Skip();
                 CHECK_PTR_RET(cd);
                 ::CopyToClipboard(cd->GetPath());
@@ -1144,7 +1143,7 @@ void clTreeCtrlPanel::OnRenameFolder(wxCommandEvent& event)
     wxFileName newFullPath(oldFullPath);
     newFullPath.RemoveLastDir();
     newFullPath.AppendDir(newName);
-    clDEBUG1() << "Renaming:" << oldFullPath.GetPath() << "->" << newFullPath.GetPath();
+    LOG_IF_TRACE { clDEBUG1() << "Renaming:" << oldFullPath.GetPath() << "->" << newFullPath.GetPath(); }
     if(::wxRename(oldFullPath.GetPath(), newFullPath.GetPath()) == 0) {
         // Rename was successful
         d->SetPath(newFullPath.GetPath());

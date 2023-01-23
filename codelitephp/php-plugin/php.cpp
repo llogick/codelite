@@ -196,7 +196,7 @@ bool PhpPlugin::IsWorkspaceViewDetached()
     return detachedPanes.Index(PHPStrings::PHP_WORKSPACE_VIEW_TITLE) != wxNOT_FOUND;
 }
 
-void PhpPlugin::CreateToolBar(clToolBar* toolbar) { wxUnusedVar(toolbar); }
+void PhpPlugin::CreateToolBar(clToolBarGeneric* toolbar) { wxUnusedVar(toolbar); }
 
 void PhpPlugin::CreatePluginMenu(wxMenu* pluginsMenu)
 {
@@ -498,7 +498,7 @@ void PhpPlugin::OnNewProject(clNewProjectEvent& e)
     }
 }
 
-void PhpPlugin::DoPlaceMenuBar(clMenuBar* menuBar)
+void PhpPlugin::DoPlaceMenuBar(wxMenuBar* menuBar)
 {
     // Add our menu bar
     wxMenu* phpMenuBarMenu = new wxMenu();

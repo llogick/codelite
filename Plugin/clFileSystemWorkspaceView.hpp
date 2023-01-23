@@ -11,7 +11,7 @@ class clThemedButton;
 class WXDLLIMPEXP_SDK clFileSystemWorkspaceView : public clTreeCtrlPanel
 {
     clConfig m_config;
-    clThemedButton* m_buttonConfigs = nullptr;
+    wxChoice* m_choiceConfigs = nullptr;
     wxArrayString m_configs;
     bool m_buildInProgress = false;
     bool m_runInProgress = false;
@@ -24,9 +24,9 @@ protected:
     void OnSettings(wxCommandEvent& event);
     void OnAddIncludePath(wxCommandEvent& event);
     void OnCreateCompileFlagsFile(wxCommandEvent& event);
-    void OnShowConfigsMenu(wxCommandEvent& event);
-    void OnRefresh(wxCommandEvent& event);
-    void OnRefreshUI(wxUpdateUIEvent& event);
+    void OnChoiceConfigSelected(wxCommandEvent& event);
+    void OnRefreshView(wxCommandEvent& event);
+    void OnRefreshViewUI(wxUpdateUIEvent& event);
     void OnBuildStarted(clBuildEvent& event);
     void OnBuildEnded(clBuildEvent& event);
     void OnProgramStarted(clExecuteEvent& event);

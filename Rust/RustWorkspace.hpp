@@ -11,7 +11,8 @@ public:
 
 public:
     wxString GetActiveProjectName() const override { return wxEmptyString; }
-    wxFileName GetFileName() const override;
+    wxString GetFileName() const override;
+    wxString GetDir() const override;
     wxString GetFilesMask() const override;
     wxFileName GetProjectFileName(const wxString& projectName) const override;
     void GetProjectFiles(const wxString& projectName, wxArrayString& files) const override;
@@ -23,6 +24,7 @@ public:
     wxString GetName() const override;
     void SetProjectActive(const wxString& name) override;
     wxString GetDebuggerName() const override;
+    clEnvList_t GetEnvironment() const override;
 };
 
 #endif // RUSTWORKSPACE_HPP

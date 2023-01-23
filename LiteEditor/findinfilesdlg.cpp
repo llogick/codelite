@@ -55,22 +55,76 @@ const wxString RE_TODO = "(/[/\\*]+ *TODO)";
 const wxString RE_BUG = "(/[/\\*]+ *BUG)";
 const wxString RE_ATTN = "(/[/\\*]+ *ATTN)";
 const wxString RE_FIXME = "(/[/\\*]+ *FIXME)";
+
+wxArrayString& make_unique_array(wxArrayString& array)
+{
+    wxArrayString unique_arr;
+    unique_arr.reserve(array.size());
+    wxStringSet_t S;
+    for(wxString& s : array) {
+        s.Trim().Trim(false);
+        if(s.empty()) {
+            continue;
+        }
+        if(S.count(s) == 0) {
+            S.insert(s);
+            unique_arr.push_back(s);
+        }
+    }
+    unique_arr.swap(array);
+    return array;
+}
 } // namespace
 
-FindInFilesDialog::FindInFilesDialog(wxWindow* parent, FindReplaceData& data, wxWindow* handler)
+FindInFilesDialog::FindInFilesDialog(wxWindow* parent, wxWindow* handler)
     : FindInFilesDialogBase(parent, wxID_ANY)
-    , m_data(data)
     , m_handler(handler)
 {
-    // Store the find-in-files data
-    wxString filemask = SessionManager::Get().GetFindInFilesMaskForCurrentWorkspace();
-    if(!filemask.IsEmpty()) {
-        m_data.SetSelectedMask(filemask);
-    }
+    // Load the find-in-files data
+    SessionManager::Get().LoadFindInFilesSession(&m_data);
 
+    // "Find"
+    m_findString->AddCommand(wxID_CLEAR, _("Clear history"));
+    m_findString->Clear();
+    m_findString->Append(make_unique_array(m_data.find_what_array));
+    m_findString->Bind(
+        wxEVT_MENU,
+        [&](wxCommandEvent& e) {
+            wxUnusedVar(e);
+            m_findString->Clear();
+        },
+        wxID_CLEAR);
+
+    m_findString->SetValue(m_data.find_what);
+
+    // "Replace"
+    m_replaceString->AddCommand(wxID_CLEAR, _("Clear history"));
+    m_replaceString->Append(make_unique_array(m_data.replace_with_array));
+    m_replaceString->SetValue(m_data.replace_with);
+    m_replaceString->Bind(
+        wxEVT_MENU,
+        [&](wxCommandEvent& e) {
+            wxUnusedVar(e);
+            m_replaceString->Clear();
+        },
+        wxID_CLEAR);
+
+    // "Files"
+    m_fileTypes->AddCommand(wxID_CLEAR, _("Clear history"));
+    m_fileTypes->Append(make_unique_array(m_data.files_array));
+    m_fileTypes->SetValue(m_data.files);
+    m_fileTypes->Bind(
+        wxEVT_MENU,
+        [&](wxCommandEvent& e) {
+            wxUnusedVar(e);
+            m_fileTypes->Clear();
+        },
+        wxID_CLEAR);
+
+    // "Where"
     m_comboBoxWhere->Clear();
-    m_comboBoxWhere->Append(m_data.GetWhereOptions());
-    m_comboBoxWhere->SetValue(m_data.GetWhere());
+    m_comboBoxWhere->Append(make_unique_array(m_data.where_array));
+    m_comboBoxWhere->SetValue(m_data.where);
     m_comboBoxWhere->AddCommand(wxID_CLEAR, _("Clear history"));
     m_comboBoxWhere->Bind(
         wxEVT_MENU,
@@ -80,49 +134,15 @@ FindInFilesDialog::FindInFilesDialog(wxWindow* parent, FindReplaceData& data, wx
         },
         wxID_CLEAR);
 
-    // Search for
-    m_findString->AddCommand(wxID_CLEAR, _("Clear history"));
-    m_findString->Clear();
-    m_findString->Append(m_data.GetFindStringArr());
-    m_findString->Bind(
-        wxEVT_MENU,
-        [&](wxCommandEvent& e) {
-            wxUnusedVar(e);
-            m_findString->Clear();
-        },
-        wxID_CLEAR);
-
-    m_findString->SetValue(m_data.GetFindString());
-    m_replaceString->AddCommand(wxID_CLEAR, _("Clear history"));
-    m_replaceString->Append(m_data.GetReplaceStringArr());
-    m_replaceString->SetValue(m_data.GetReplaceString());
-    m_replaceString->Bind(
-        wxEVT_MENU,
-        [&](wxCommandEvent& e) {
-            wxUnusedVar(e);
-            m_replaceString->Clear();
-        },
-        wxID_CLEAR);
-
-    m_fileTypes->AddCommand(wxID_CLEAR, _("Clear history"));
-    m_fileTypes->SetSelection(0);
-    m_fileTypes->Bind(
-        wxEVT_MENU,
-        [&](wxCommandEvent& e) {
-            wxUnusedVar(e);
-            m_fileTypes->Clear();
-        },
-        wxID_CLEAR);
-
-    m_matchCase->SetValue(m_data.GetFlags() & wxFRD_MATCHCASE);
-    m_matchWholeWord->SetValue(m_data.GetFlags() & wxFRD_MATCHWHOLEWORD);
-    m_regualrExpression->SetValue(m_data.GetFlags() & wxFRD_REGULAREXPRESSION);
-    m_checkBoxSaveFilesBeforeSearching->SetValue(m_data.GetFlags() & wxFRD_SAVE_BEFORE_SEARCH);
-    m_checkBoxPipeForGrep->SetValue(m_data.GetFlags() & wxFRD_ENABLE_PIPE_SUPPORT);
+    m_matchCase->SetValue(m_data.flags & wxFRD_MATCHCASE);
+    m_matchWholeWord->SetValue(m_data.flags & wxFRD_MATCHWHOLEWORD);
+    m_regualrExpression->SetValue(m_data.flags & wxFRD_REGULAREXPRESSION);
+    m_checkBoxSaveFilesBeforeSearching->SetValue(m_data.flags & wxFRD_SAVE_BEFORE_SEARCH);
+    m_checkBoxPipeForGrep->SetValue(m_data.flags & wxFRD_ENABLE_PIPE_SUPPORT);
 
     // keep the current regex value, in case user uses the presets and we want
     // to restore it back
-    m_oldRegexValue = m_data.GetFlags() & wxFRD_REGULAREXPRESSION;
+    m_oldRegexValue = m_data.flags & wxFRD_REGULAREXPRESSION;
 
     // Set encoding
     static wxArrayString astrEncodings;
@@ -141,12 +161,12 @@ FindInFilesDialog::FindInFilesDialog(wxWindow* parent, FindReplaceData& data, wx
             wxString encodingName = wxFontMapper::GetEncodingName(fontEnc);
             size_t pos = astrEncodings.Add(encodingName);
             encodingMap.insert({ encodingName, (int)pos });
-            if(m_data.GetEncoding() == encodingName) {
+            if(m_data.encoding == encodingName) {
                 selection = static_cast<int>(pos);
             }
         }
     } else {
-        selection = encodingMap.count(m_data.GetEncoding()) ? encodingMap.find(m_data.GetEncoding())->second : 0;
+        selection = encodingMap.count(m_data.encoding) ? encodingMap.find(m_data.encoding)->second : 0;
     }
 
     m_comboBoxEncoding->Append(astrEncodings);
@@ -154,8 +174,8 @@ FindInFilesDialog::FindInFilesDialog(wxWindow* parent, FindReplaceData& data, wx
         m_comboBoxEncoding->SetSelection(selection);
     }
 
-    m_checkBoxFollowSymlinks->SetValue(!(m_data.GetFileScannerFlags() & clFilesScanner::SF_DONT_FOLLOW_SYMLINKS));
-    m_checkBoxIncludeHiddenFolders->SetValue(!(m_data.GetFileScannerFlags() & clFilesScanner::SF_EXCLUDE_HIDDEN_DIRS));
+    m_checkBoxFollowSymlinks->SetValue(!(m_data.files_scanner_flags & clFilesScanner::SF_DONT_FOLLOW_SYMLINKS));
+    m_checkBoxIncludeHiddenFolders->SetValue(!(m_data.files_scanner_flags & clFilesScanner::SF_EXCLUDE_HIDDEN_DIRS));
 
     // Set the file mask
     DoSetFileMask();
@@ -166,39 +186,12 @@ FindInFilesDialog::FindInFilesDialog(wxWindow* parent, FindReplaceData& data, wx
     GetSizer()->Fit(this);
     SetMinSize(GetSize());
     WindowAttrManager::Load(this);
+    CenterOnParent();
 }
 
-FindInFilesDialog::~FindInFilesDialog() { BuildFindReplaceData(); }
+FindInFilesDialog::~FindInFilesDialog() { SaveFindReplaceData(); }
 
-void FindInFilesDialog::DoSetFileMask()
-{
-    // Get the output
-    wxArrayString fileTypes = m_data.GetFileMask();
-    wxArrayString::iterator iter = std::unique(fileTypes.begin(), fileTypes.end());
-
-    // remove the non unique parts
-    fileTypes.resize(std::distance(fileTypes.begin(), iter));
-
-    // Create a single mask array
-    m_fileTypes->Clear();
-
-    // Remove empty entries
-    wxArrayString tempMaskArr;
-    tempMaskArr.reserve(fileTypes.size());
-    std::for_each(fileTypes.begin(), fileTypes.end(), [&](wxString& item) {
-        item.Trim().Trim(false);
-        if(!item.IsEmpty()) {
-            tempMaskArr.Add(item);
-        }
-    });
-    fileTypes.swap(tempMaskArr);
-
-    if(!fileTypes.IsEmpty()) {
-        m_fileTypes->Append(fileTypes);
-        wxString selectedMask = m_data.GetSelectedMask();
-        SetFileMask(selectedMask);
-    }
-}
+void FindInFilesDialog::DoSetFileMask() {}
 
 void FindInFilesDialog::DoSearchReplace()
 {
@@ -207,7 +200,7 @@ void FindInFilesDialog::DoSearchReplace()
     data.SetOwner(m_handler ? m_handler : clMainFrame::Get()->GetOutputPane()->GetReplaceResultsTab());
     DoSaveOpenFiles();
     SearchThreadST::Get()->PerformSearch(data);
-    BuildFindReplaceData();
+    SaveFindReplaceData();
     EndModal(wxID_OK);
 }
 
@@ -220,14 +213,14 @@ void FindInFilesDialog::DoSearch()
     // check to see if we require to save the files
     DoSaveOpenFiles();
     SearchThreadST::Get()->PerformSearch(data);
-    BuildFindReplaceData();
+    SaveFindReplaceData();
     EndModal(wxID_OK);
 }
 
 SearchData FindInFilesDialog::DoGetSearchData()
 {
     SearchData data;
-    wxString findStr(m_data.GetFindString());
+    wxString findStr(m_data.find_what);
     if(!m_findString->GetValue().IsEmpty()) {
         findStr = m_findString->GetValue();
     }
@@ -235,8 +228,8 @@ SearchData FindInFilesDialog::DoGetSearchData()
     data.SetFindString(findStr);
     data.SetReplaceWith(m_replaceString->GetValue());
 
-    m_data.SetFlags(GetSearchFlags());
-    size_t flags = m_data.GetFlags();
+    m_data.flags = GetSearchFlags();
+    size_t flags = m_data.flags;
 
     // If the 'Skip comments' is ON, remove the
     // 'colour comments' flag
@@ -264,7 +257,7 @@ SearchData FindInFilesDialog::DoGetSearchData()
     data.SetFileScannerFlags(search_flags);
 
     // for persisntency
-    m_data.SetFileScannerFlags(search_flags);
+    m_data.files_scanner_flags = search_flags;
 
     wxArrayString searchWhere = GetPathsAsArray();
     wxArrayString files;
@@ -311,7 +304,7 @@ SearchData FindInFilesDialog::DoGetSearchData()
                 continue;
             }
             // Add the workspace folder
-            rootDirs.Add(clWorkspaceManager::Get().GetWorkspace()->GetFileName().GetPath());
+            rootDirs.Add(clWorkspaceManager::Get().GetWorkspace()->GetDir());
 
         } else if((rootDir == wxGetTranslation(SEARCH_IN_WORKSPACE)) || (rootDir == SEARCH_IN_WORKSPACE)) {
             if(!clWorkspaceManager::Get().IsWorkspaceOpened()) {
@@ -458,8 +451,8 @@ int FindInFilesDialog::ShowDialog()
 {
     // Update the combobox
     m_findString->Clear();
-    m_findString->Append(m_data.GetFindStringArr());
-    m_findString->SetValue(m_data.GetFindString());
+    m_findString->Append(m_data.find_what_array);
+    m_findString->SetValue(m_data.find_what);
 
     clEditor* editor = clMainFrame::Get()->GetMainBook()->GetActiveEditor();
     if(editor) {
@@ -472,14 +465,6 @@ int FindInFilesDialog::ShowDialog()
 
     m_findString->CallAfter(&wxTextCtrl::SetFocus);
     return wxDialog::ShowModal();
-}
-
-void FindInFilesDialog::DoSaveSearchPaths()
-{
-    wxArrayString paths;
-    paths = m_comboBoxWhere->GetStrings();
-    paths.Insert(m_comboBoxWhere->GetValue(), 0);
-    m_data.SetWhereOptions(paths);
 }
 
 void FindInFilesDialog::DoSaveOpenFiles()
@@ -598,31 +583,34 @@ wxArrayString GetComboBoxStrings(clComboBox* cb)
 }
 } // namespace
 
-void FindInFilesDialog::BuildFindReplaceData()
+void FindInFilesDialog::SaveFindReplaceData()
 {
     if(m_presetSearch && !m_userChangedRegexManually) {
         // restore the regex value
         m_regualrExpression->SetValue(m_oldRegexValue);
     }
 
-    m_data.SetFlags(GetSearchFlags());
-    m_data.SetFindStrings(m_findString->GetStrings());
-    m_data.SetFindString(m_findString->GetValue());
+    m_data.flags = GetSearchFlags();
+    m_data.find_what_array = m_findString->GetStrings();
+    m_data.find_what = m_findString->GetValue();
 
-    m_data.SetReplaceStrings(m_replaceString->GetStrings());
-    m_data.SetReplaceString(m_replaceString->GetValue());
+    m_data.replace_with_array = m_replaceString->GetStrings();
+    m_data.replace_with = m_replaceString->GetValue();
 
-    m_data.SetEncoding(m_comboBoxEncoding->GetStringSelection());
+    m_data.encoding = m_comboBoxEncoding->GetStringSelection();
 
     wxArrayString masks = GetComboBoxStrings(m_fileTypes);
     wxString value = m_fileTypes->GetValue();
 
-    m_data.SetSelectedMask(value);
-    m_data.SetFileMask(masks);
+    m_data.files = value;
+    m_data.files_array = masks;
 
     // store the "Where"
-    wxArrayString where_arr = GetComboBoxStrings(m_comboBoxWhere);
-    m_data.SetWhereOptions(where_arr);
+    if(!m_transient) {
+        wxArrayString where_arr = GetComboBoxStrings(m_comboBoxWhere);
+        m_data.where_array = where_arr;
+        m_data.where = m_comboBoxWhere->GetValue();
+    }
 
     size_t search_flags = clFilesScanner::SF_DEFAULT;
     if(m_checkBoxFollowSymlinks->IsChecked()) {
@@ -631,7 +619,10 @@ void FindInFilesDialog::BuildFindReplaceData()
     if(m_checkBoxIncludeHiddenFolders->IsChecked()) {
         search_flags &= ~clFilesScanner::SF_EXCLUDE_HIDDEN_DIRS;
     }
-    m_data.SetFileScannerFlags(search_flags);
+    m_data.files_scanner_flags = search_flags;
+
+    // save the session
+    SessionManager::Get().SaveFindInFilesSession(m_data);
 }
 
 void FindInFilesDialog::SetFileMask(const wxString& mask)

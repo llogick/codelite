@@ -44,15 +44,15 @@
  }]]]>
     </Plugin>
   </Plugins>
+  <VirtualDirectory Name="CodeLiteRemote">
+    <File Name="CodeLiteRemoteHelper.cpp"/>
+    <File Name="CodeLiteRemoteHelper.hpp"/>
+  </VirtualDirectory>
   <VirtualDirectory Name="Rust">
     <File Name="clRustup.hpp"/>
     <File Name="clRustup.cpp"/>
     <File Name="clRustLocator.hpp"/>
     <File Name="clRustLocator.cpp"/>
-  </VirtualDirectory>
-  <VirtualDirectory Name="Python">
-    <File Name="clPythonLocator.cpp"/>
-    <File Name="clPythonLocator.hpp"/>
   </VirtualDirectory>
   <VirtualDirectory Name="FileSystemWorkspace">
     <File Name="clShellHelper.cpp"/>
@@ -202,6 +202,7 @@
     <Topleveldir>/src/codelite/Plugin</Topleveldir>
   </Reconciliation>
   <VirtualDirectory Name="src">
+    <File Name="WorkspaceHelper.cpp"/>
     <File Name="clLocaleManager.hpp"/>
     <File Name="clLocaleManager.cpp"/>
     <File Name="DefaultLexerJSON.cpp"/>
@@ -349,6 +350,7 @@
     <File Name="EnvironmentVariablesDlg.cpp"/>
   </VirtualDirectory>
   <VirtualDirectory Name="include">
+    <File Name="WorkspaceHelper.hpp"/>
     <File Name="async_executable_cmd.h"/>
     <File Name="buildmanager.h"/>
     <File Name="clean_request.h"/>
@@ -369,6 +371,8 @@
     <File Name="clStrings.h"/>
   </VirtualDirectory>
   <VirtualDirectory Name="Commons">
+    <File Name="MSWDarkMode.cpp"/>
+    <File Name="MSWDarkMode.hpp"/>
     <File Name="mdparser.hpp"/>
     <File Name="mdparser.cpp"/>
     <File Name="clFileCache.cpp"/>
@@ -566,6 +570,8 @@
       <File Name="clEditorBar.cpp"/>
     </VirtualDirectory>
     <VirtualDirectory Name="Dialogs">
+      <File Name="SelectFileTypesDialog.cpp"/>
+      <File Name="SelectFileTypesDialog.hpp"/>
       <File Name="clPluginsFindBar.cpp"/>
       <File Name="clPluginsFindBar.h"/>
       <File Name="quickfindbarbase.wxcp"/>
@@ -660,7 +666,6 @@
     <File Name="VirtualDirectoryColour.h"/>
     <File Name="VirtualDirectoryColour.cpp"/>
   </VirtualDirectory>
-  <VirtualDirectory Name="JobQueue"/>
   <Dependencies/>
   <VirtualDirectory Name="BrowsingRecords">
     <File Name="navigationmanager.h"/>
@@ -698,12 +703,14 @@
   <Dependencies Name="WinDebug_29"/>
   <Dependencies Name="WinRelease_29"/>
   <VirtualDirectory Name="wxcrafter">
+    <File Name="SelectFileTypesDialogBase.wxcp"/>
     <File Name="clFileSystemWorkspaceDlgBase.wxcp"/>
     <File Name="NewProjectDialogBase.wxcp"/>
     <File Name="DiffUI.wxcp"/>
     <File Name="clResizableTooltipBase.wxcp"/>
     <File Name="clAboutDialogBase.wxcp"/>
     <VirtualDirectory Name="resources">
+      <File Name="SelectFileTypesDialogBase_plugin_bitmaps.cpp"/>
       <File Name="AddIncludeFile_liteeditor_bitmaps.cpp"/>
       <File Name="clFileSystemWorkspaceDlgBase_plugin_bitmaps.cpp"/>
       <File Name="quickfindbarbase_bitmaps.cpp"/>
@@ -727,6 +734,8 @@
       <File Name="GotoAnythingBaseUI_plugin_bitmaps.cpp"/>
     </VirtualDirectory>
     <VirtualDirectory Name="base">
+      <File Name="SelectFileTypesDialogBase.cpp"/>
+      <File Name="SelectFileTypesDialogBase.hpp"/>
       <File Name="clFileSystemWorkspaceDlgBase.cpp"/>
       <File Name="clFileSystemWorkspaceDlgBase.h"/>
       <File Name="NewProjectDialogBase.cpp"/>
@@ -821,6 +830,8 @@
     <File Name="clPatch.cpp"/>
   </VirtualDirectory>
   <VirtualDirectory Name="Compilers">
+    <File Name="CompilerLocatorMSYS2Clang.cpp"/>
+    <File Name="CompilerLocatorMSYS2Clang.hpp"/>
     <File Name="CompilerLocatorRustc.cpp"/>
     <File Name="CompilerLocatorRustc.hpp"/>
     <File Name="CompilerLocatorMSYS2.cpp"/>
@@ -829,8 +840,6 @@
     <File Name="CompilerLocatorEosCDT.h"/>
     <File Name="ICompilerLocator.h"/>
     <File Name="ICompilerLocator.cpp"/>
-    <File Name="CompilerLocatorMinGW.h"/>
-    <File Name="CompilerLocatorMinGW.cpp"/>
     <File Name="CompilersDetectorManager.h"/>
     <File Name="CompilersDetectorManager.cpp"/>
     <File Name="CompilerLocatorGCC.h"/>
@@ -868,6 +877,19 @@
     <File Name="NodeJSLocator.h"/>
     <File Name="NodeJSLocator.cpp"/>
   </VirtualDirectory>
+  <Dependencies Name="CMake_Debug"/>
+  <Dependencies Name="Custom"/>
+  <Dependencies Name="Win_wxWidgets_29"/>
+  <Dependencies Name="Win_x64_Debug">
+    <Project Name="libCodeLite"/>
+  </Dependencies>
+  <Dependencies Name="Win_x86_Release"/>
+  <Dependencies Name="Win_x64_Release">
+    <Project Name="sqlite3"/>
+    <Project Name="wxsqlite3"/>
+    <Project Name="ctagsdlib"/>
+    <Project Name="libCodeLite"/>
+  </Dependencies>
   <Settings Type="Dynamic Library">
     <GlobalSettings>
       <Compiler Options="" C_Options="" Assembler="">
@@ -882,8 +904,8 @@
       </Linker>
       <ResourceCompiler Options=""/>
     </GlobalSettings>
-    <Configuration Name="CMake_Debug" CompilerType="gnu gcc" DebuggerType="GNU gdb debugger" Type="Executable" BuildCmpWithGlobalSettings="append" BuildLnkWithGlobalSettings="append" BuildResWithGlobalSettings="append">
-      <Compiler Options="-g -Wall" C_Options="" Assembler="" Required="yes" PreCompiledHeader="" PCHInCommandLine="no" PCHFlags="" PCHFlagsPolicy="0">
+    <Configuration Name="CMake_Debug" CompilerType="gnu gcc" DebuggerType="lldb-vscode" Type="Executable" BuildCmpWithGlobalSettings="append" BuildLnkWithGlobalSettings="append" BuildResWithGlobalSettings="append">
+      <Compiler Options="-g;-fstandalone-debug -Wall" C_Options="" Assembler="" Required="yes" PreCompiledHeader="" PCHInCommandLine="no" PCHFlags="" PCHFlagsPolicy="0">
         <IncludePath Value="."/>
       </Compiler>
       <Linker Options="-O0" Required="yes">
@@ -925,8 +947,8 @@
         <SearchPaths/>
       </Completion>
     </Configuration>
-    <Configuration Name="Custom" CompilerType="g++-64" DebuggerType="GNU gdb debugger" Type="Executable" BuildCmpWithGlobalSettings="append" BuildLnkWithGlobalSettings="append" BuildResWithGlobalSettings="append">
-      <Compiler Options="-g -Wall" C_Options="" Assembler="" Required="yes" PreCompiledHeader="" PCHInCommandLine="no" PCHFlags="" PCHFlagsPolicy="0">
+    <Configuration Name="Custom" CompilerType="clang64/clang-15.0.2" DebuggerType="lldb-vscode" Type="Executable" BuildCmpWithGlobalSettings="append" BuildLnkWithGlobalSettings="append" BuildResWithGlobalSettings="append">
+      <Compiler Options="-g;-fstandalone-debug -Wall" C_Options="" Assembler="" Required="yes" PreCompiledHeader="" PCHInCommandLine="no" PCHFlags="" PCHFlagsPolicy="0">
         <IncludePath Value="."/>
       </Compiler>
       <Linker Options="-O0" Required="yes">
@@ -968,8 +990,8 @@
         <SearchPaths/>
       </Completion>
     </Configuration>
-    <Configuration Name="Win_wxWidgets_29" CompilerType="g++-64" DebuggerType="GNU gdb debugger" Type="Dynamic Library" BuildCmpWithGlobalSettings="append" BuildLnkWithGlobalSettings="append" BuildResWithGlobalSettings="append">
-      <Compiler Options="$(shell wx-config --cxxflags  --unicode=yes);-g;-Wall" C_Options="$(shell wx-config --cxxflags  --unicode=yes);-g;-Wall" Assembler="" Required="yes" PreCompiledHeader="" PCHInCommandLine="no" PCHFlags="" PCHFlagsPolicy="0">
+    <Configuration Name="Win_wxWidgets_29" CompilerType="clang64/clang-15.0.2" DebuggerType="lldb-vscode" Type="Dynamic Library" BuildCmpWithGlobalSettings="append" BuildLnkWithGlobalSettings="append" BuildResWithGlobalSettings="append">
+      <Compiler Options="$(shell wx-config --cxxflags  --unicode=yes);-g;-fstandalone-debug;-Wall" C_Options="$(shell wx-config --cxxflags  --unicode=yes);-g;-fstandalone-debug;-Wall" Assembler="" Required="yes" PreCompiledHeader="" PCHInCommandLine="no" PCHFlags="" PCHFlagsPolicy="0">
         <IncludePath Value="."/>
         <IncludePath Value="./include"/>
         <IncludePath Value="../CodeLite"/>
@@ -1019,8 +1041,8 @@
         <SearchPaths/>
       </Completion>
     </Configuration>
-    <Configuration Name="Win_x64_Debug" CompilerType="GCC (x86_64)" DebuggerType="GNU gdb debugger" Type="Dynamic Library" BuildCmpWithGlobalSettings="append" BuildLnkWithGlobalSettings="append" BuildResWithGlobalSettings="append">
-      <Compiler Options="-g;-Wall;$(shell wx-config --cxxflags  --unicode=yes);-Winvalid-pch" C_Options="-Wall;-g" Assembler="" Required="yes" PreCompiledHeader="libplugin_dbg_pch.h" PCHInCommandLine="yes" PCHFlags="" PCHFlagsPolicy="1">
+    <Configuration Name="Win_x64_Debug" CompilerType="clang64/clang-15.0.2" DebuggerType="lldb-vscode" Type="Dynamic Library" BuildCmpWithGlobalSettings="append" BuildLnkWithGlobalSettings="append" BuildResWithGlobalSettings="append">
+      <Compiler Options="-g;-fstandalone-debug;-Wall;$(shell wx-config --cxxflags  --unicode=yes);-Winvalid-pch" C_Options="-Wall;-g;-fstandalone-debug" Assembler="" Required="yes" PreCompiledHeader="libplugin_dbg_pch.h" PCHInCommandLine="yes" PCHFlags="" PCHFlagsPolicy="1">
         <IncludePath Value="."/>
         <IncludePath Value="./include"/>
         <IncludePath Value="../CodeLite"/>
@@ -1072,7 +1094,7 @@
         <SearchPaths/>
       </Completion>
     </Configuration>
-    <Configuration Name="Win_x64_Release" CompilerType="GCC (x86_64)" DebuggerType="GNU gdb debugger" Type="Dynamic Library" BuildCmpWithGlobalSettings="append" BuildLnkWithGlobalSettings="append" BuildResWithGlobalSettings="append">
+    <Configuration Name="Win_x64_Release" CompilerType="clang64/clang-15.0.2" DebuggerType="lldb-vscode" Type="Dynamic Library" BuildCmpWithGlobalSettings="append" BuildLnkWithGlobalSettings="append" BuildResWithGlobalSettings="append">
       <Compiler Options="-O2;-std=c++11;-Wall;$(shell wx-config --cxxflags --debug=no --unicode=yes);-Winvalid-pch" C_Options="-Wall" Assembler="" Required="yes" PreCompiledHeader="libplugin_pch.h" PCHInCommandLine="yes" PCHFlags="" PCHFlagsPolicy="1">
         <IncludePath Value="."/>
         <IncludePath Value="./include"/>
@@ -1091,7 +1113,7 @@
         <Library Value="UxTheme"/>
       </Linker>
       <ResourceCompiler Options="" Required="yes"/>
-      <General OutputFile="libplugin_sdku.dll" IntermediateDirectory="" Command="$(WorkspacePath)/build-$(WorkspaceConfiguration)/bin/$(OutputFile)" CommandArguments="" UseSeparateDebugArgs="no" DebugArguments="" WorkingDirectory="" PauseExecWhenProcTerminates="yes" IsGUIProgram="no" IsEnabled="yes"/>
+      <General OutputFile="libplugin_sdku.dll" IntermediateDirectory="" Command="$(WorkspacePath)/build-$(WorkspaceConfiguration)/bin/$(OutputFile)" CommandArguments="" UseSeparateDebugArgs="no" DebugArguments="" WorkingDirectory="" PauseExecWhenProcTerminates="yes" IsGUIProgram="yes" IsEnabled="yes"/>
       <BuildSystem Name="CodeLite Makefile Generator"/>
       <Environment EnvVarSetName="&lt;Use Defaults&gt;" DbgSetName="&lt;Use Defaults&gt;">
         <![CDATA[]]>
@@ -1126,7 +1148,7 @@
         <SearchPaths/>
       </Completion>
     </Configuration>
-    <Configuration Name="Win_x86_Release" CompilerType="GCC (i686)" DebuggerType="GNU gdb debugger" Type="Dynamic Library" BuildCmpWithGlobalSettings="append" BuildLnkWithGlobalSettings="append" BuildResWithGlobalSettings="append">
+    <Configuration Name="Win_x86_Release" CompilerType="GCC (i686)" DebuggerType="lldb-vscode" Type="Dynamic Library" BuildCmpWithGlobalSettings="append" BuildLnkWithGlobalSettings="append" BuildResWithGlobalSettings="append">
       <Compiler Options="-Wall;$(shell wx-config --cxxflags --debug=no --unicode=yes);-Winvalid-pch;-O2" C_Options="-Wall" Assembler="" Required="yes" PreCompiledHeader="" PCHInCommandLine="no" PCHFlags="$(shell wx-config --cxxflags --unicode=yes --debug=no) -O2" PCHFlagsPolicy="0">
         <IncludePath Value="."/>
         <IncludePath Value="./include"/>
@@ -1179,18 +1201,4 @@
       </Completion>
     </Configuration>
   </Settings>
-  <Dependencies Name="CMake_Debug"/>
-  <Dependencies Name="Custom"/>
-  <Dependencies Name="Win_wxWidgets_29"/>
-  <Dependencies Name="Win_x64_Debug">
-    <Project Name="libCodeLite"/>
-  </Dependencies>
-  <Dependencies Name="Win_x64_Release">
-    <Project Name="libCodeLite"/>
-    <Project Name="sqlite3"/>
-    <Project Name="wxsqlite3"/>
-    <Project Name="databaselayer_sqlite"/>
-    <Project Name="wxshapeframework"/>
-  </Dependencies>
-  <Dependencies Name="Win_x86_Release"/>
 </CodeLite_Project>

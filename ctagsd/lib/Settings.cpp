@@ -4,6 +4,7 @@
 #include "CompileFlagsTxt.h"
 #include "GCCMetadata.hpp"
 #include "JSON.h"
+#include "Platform.hpp"
 #include "clTempFile.hpp"
 #include "ctags_manager.h"
 #include "file_logger.h"
@@ -189,6 +190,7 @@ std::vector<wxString> DEFAULT_TOKENS = {
     "_LIBCPP_CONSTEXPR_AFTER_CXX17",
     "_LIBCPP_CONSTEXPR_IF_NODEBUG",
     "_LIBCPP_CRT_FUNC",
+    "_LIBCPP_PUSH_MACROS",
     "_LIBCPP_DECLARE_STRONG_ENUM(%0)=enum class %0",
     "_LIBCPP_DECLARE_STRONG_ENUM_EPILOG(%0)",
     "_LIBCPP_DECLSPEC_EMPTY_BASES",
@@ -237,6 +239,7 @@ std::vector<wxString> DEFAULT_TOKENS = {
     "_LIBCPP_TOSTRING(%0)=\"%0\"",
     "_LIBCPP_TOSTRING2(%0)=\"%0\"",
     "_LIBCPP_TYPE_VIS",
+    "_LIBCPP_TEMPLATE_VIS",
     "_LIBCPP_TYPE_VIS_ONLY",
     "_LIBCPP_UNUSED_VAR(%0)=%0",
     "_LIBCPP_WEAK",
@@ -428,14 +431,14 @@ void CTagsdSettings::Load(const wxFileName& filepath)
         CreateDefault(filepath);
     }
 
-    clDEBUG1() << "search path...........:" << m_search_path << endl;
-    clDEBUG1() << "tokens................:" << m_tokens << endl;
-    clDEBUG1() << "types.................:" << m_types << endl;
-    clDEBUG1() << "file_mask.............:" << m_file_mask << endl;
-    clDEBUG1() << "codelite_indexer......:" << m_codelite_indexer << endl;
-    clDEBUG1() << "ignore_spec...........:" << m_ignore_spec << endl;
-    clDEBUG1() << "limit_results.........:" << m_limit_results << endl;
-    clDEBUG1() << "Settings dir is set to:" << m_settings_dir << endl;
+    LOG_IF_TRACE { clDEBUG1() << "search path...........:" << m_search_path << endl; }
+    LOG_IF_TRACE { clDEBUG1() << "tokens................:" << m_tokens << endl; }
+    LOG_IF_TRACE { clDEBUG1() << "types.................:" << m_types << endl; }
+    LOG_IF_TRACE { clDEBUG1() << "file_mask.............:" << m_file_mask << endl; }
+    LOG_IF_TRACE { clDEBUG1() << "codelite_indexer......:" << m_codelite_indexer << endl; }
+    LOG_IF_TRACE { clDEBUG1() << "ignore_spec...........:" << m_ignore_spec << endl; }
+    LOG_IF_TRACE { clDEBUG1() << "limit_results.........:" << m_limit_results << endl; }
+    LOG_IF_TRACE { clDEBUG1() << "Settings dir is set to:" << m_settings_dir << endl; }
 
     // conver the tokens to wxArrayString
     wxArrayString wxarr;
@@ -490,62 +493,29 @@ void CTagsdSettings::build_search_path(const wxFileName& filepath)
         S.insert(ccj.GetIncludes().begin(), ccj.GetIncludes().end());
     }
 
-#if defined(__WXGTK__) || defined(__WXOSX__)
-    wxString cxx = "/usr/bin/g++";
-
-#ifdef __WXOSX__
-    cxx = "/usr/bin/clang++";
-#endif
-
-    // Common compiler paths - should be placed at top of the include path!
-    wxString command;
-
-    // GCC prints parts of its output to stdout and some to stderr
-    // redirect all output to stdout
-    wxString working_directory;
-    clTempFile tmpfile;
-    tmpfile.Write(wxEmptyString);
-    command << "/bin/bash -c '" << cxx << " -v -x c++ /dev/null -fsyntax-only > " << tmpfile.GetFullPath() << " 2>&1'";
-
-    ProcUtils::SafeExecuteCommand(command);
-
-    wxString content;
-    FileUtils::ReadFileContent(tmpfile.GetFullPath(), content);
-    wxArrayString outputArr = wxStringTokenize(content, "\n\r", wxTOKEN_STRTOK);
-
-    // Analyze the output
-    bool collect(false);
-    wxArrayString search_paths;
-    for(wxString& line : outputArr) {
-        line.Trim().Trim(false);
-
-        // search the scan starting point
-        if(line.Contains("#include <...> search starts here:")) {
-            collect = true;
-            continue;
-        }
-
-        if(line.Contains("End of search list.")) {
-            break;
-        }
-
-        if(collect) {
-            line.Replace("(framework directory)", wxEmptyString);
-            // on Mac, (framework directory) appears also,
-            // but it is harmless to use it under all OSs
-            wxFileName includePath(line, wxEmptyString);
-            includePath.Normalize();
-            search_paths.Add(includePath.GetPath());
-        }
+    // Add the paths found in the compile_flags.txt/compile_commands.json files
+    for(const auto& path : S) {
+        // add the custom paths
+        m_search_path.Add(path);
     }
 
-    S.insert(search_paths.begin(), search_paths.end());
+    wxString basename;
+#ifdef __WXMSW__
+    basename = "clang";
+#elif defined(__WXMAC__)
+    basename = "clang";
+#else
+    basename = "gcc";
 #endif
 
-    m_search_path.clear();
-    m_search_path.reserve(S.size());
-    for(const auto& path : S) {
-        m_search_path.Add(path);
+    wxString command;
+
+    // Common compiler paths - should be placed at top of the include path!
+    if(ThePlatform->Which(basename, &command)) {
+        GCCMetadata md{ basename };
+
+        md.Load(command, wxEmptyString, false);
+        m_search_path.insert(m_search_path.end(), md.GetSearchPaths().begin(), md.GetSearchPaths().end());
     }
 }
 

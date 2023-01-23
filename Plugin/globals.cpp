@@ -25,6 +25,7 @@
 #include "globals.h"
 
 #include "ColoursAndFontsManager.h"
+#include "SelectFileTypesDialog.hpp"
 #include "StringUtils.h"
 #include "asyncprocess.h"
 #include "clConsoleBase.h"
@@ -87,6 +88,8 @@
 #include <wx/zipstrm.h>
 
 #ifdef __WXMSW__
+#include "MSWDarkMode.hpp"
+
 #include <UxTheme.h>
 #else
 #include <sys/wait.h>
@@ -103,144 +106,14 @@
 const wxEventType wxEVT_COMMAND_CL_INTERNAL_0_ARGS = ::wxNewEventType();
 const wxEventType wxEVT_COMMAND_CL_INTERNAL_1_ARGS = ::wxNewEventType();
 
-#ifdef __WXMSW__
-
-typedef BOOL(WINAPI* ADMFA)(BOOL allow);                    // AllowDarkModeForApp
-typedef BOOL(WINAPI* ADMFW)(HWND window, BOOL allow);       // AllowDarkModeForWindow
-typedef void(WINAPI* FMT)();                                // FlushMenuThemes
-typedef HRESULT(WINAPI* DSWA)(HWND, DWORD, LPCVOID, DWORD); // DwmSetWindowAttribute
-
 void MSWSetWindowDarkTheme(wxWindow* win)
 {
-    bool current_theme_is_dark = DrawingUtils::IsDark(clSystemSettings::GetDefaultPanelColour());
-    static const HMODULE huxtheme = GetModuleHandle(L"uxtheme.dll");
-    if(huxtheme) {
-        static const ADMFA _AllowDarkModeForApp = (ADMFA)GetProcAddress(huxtheme, MAKEINTRESOURCEA(135));
-        static const ADMFW _AllowDarkModeForWindow = (ADMFW)GetProcAddress(huxtheme, MAKEINTRESOURCEA(133));
-        static const FMT _FlushMenuThemes = (FMT)GetProcAddress(huxtheme, MAKEINTRESOURCEA(136));
-
-        if(_AllowDarkModeForApp && _AllowDarkModeForWindow) {
-            _AllowDarkModeForApp(current_theme_is_dark);
-
-            // bfs the windows
-            std::vector<wxWindow*> Q;
-            Q.push_back(win);
-            while(!Q.empty()) {
-                wxWindow* w = Q.front();
-                Q.erase(Q.begin());
-
-                bool use_dark = current_theme_is_dark;
-                if(dynamic_cast<wxTextCtrl*>(w)) {
-                    use_dark = false; // don't allow dark mode for text controls
-                }
-
-                _AllowDarkModeForWindow(w->GetHandle(), use_dark);
-                SetWindowTheme(w->GetHandle(), use_dark ? L"DarkMode_Explorer" : L"Explorer", NULL);
-
-                if(_FlushMenuThemes) {
-                    _FlushMenuThemes();
-                }
-
-                InvalidateRect(w->GetHandle(), nullptr, FALSE); // HACK
-                const auto& children = w->GetChildren();
-                for(auto c : children) {
-                    Q.push_back(c);
-                }
-            }
-        }
-    }
-}
-
+#if defined(__WXMSW__) && 0
+    MSWDarkMode::Get().SetDarkMode(win);
 #else
-void MSWSetWindowDarkTheme(wxWindow* win) { wxUnusedVar(win); }
+    wxUnusedVar(win);
 #endif
-
-// --------------------------------------------------------
-// Internal handler to handle queuing requests...
-// --------------------------------------------------------
-class clInternalEventHandlerData : public wxClientData
-{
-    wxObject* m_this;
-    clEventFunc_t m_funcPtr;
-    wxClientData* m_arg;
-
-public:
-    clInternalEventHandlerData(wxObject* instance, clEventFunc_t func, wxClientData* arg)
-        : m_this(instance)
-        , m_funcPtr(func)
-        , m_arg(arg)
-    {
-    }
-
-    clInternalEventHandlerData(wxObject* instance, clEventFunc_t func)
-        : m_this(instance)
-        , m_funcPtr(func)
-        , m_arg(NULL)
-    {
-    }
-
-    virtual ~clInternalEventHandlerData() { wxDELETE(m_arg); }
-
-    wxClientData* GetArg() const { return m_arg; }
-    clEventFunc_t GetFuncPtr() const { return m_funcPtr; }
-    wxObject* GetThis() { return m_this; }
-};
-
-class clInternalEventHandler : public wxEvtHandler
-{
-public:
-    clInternalEventHandler()
-    {
-        EventNotifier::Get()->Connect(wxEVT_COMMAND_CL_INTERNAL_0_ARGS,
-                                      wxCommandEventHandler(clInternalEventHandler::OnInternalEvent0), NULL, this);
-        EventNotifier::Get()->Connect(wxEVT_COMMAND_CL_INTERNAL_1_ARGS,
-                                      wxCommandEventHandler(clInternalEventHandler::OnInternalEvent1), NULL, this);
-    }
-
-    virtual ~clInternalEventHandler()
-    {
-        EventNotifier::Get()->Disconnect(wxEVT_COMMAND_CL_INTERNAL_0_ARGS,
-                                         wxCommandEventHandler(clInternalEventHandler::OnInternalEvent0), NULL, this);
-        EventNotifier::Get()->Disconnect(wxEVT_COMMAND_CL_INTERNAL_1_ARGS,
-                                         wxCommandEventHandler(clInternalEventHandler::OnInternalEvent1), NULL, this);
-    }
-
-    /**
-     * @brief Call 1 arguments function
-     */
-    void OnInternalEvent1(wxCommandEvent& e)
-    {
-        clInternalEventHandlerData* cd = reinterpret_cast<clInternalEventHandlerData*>(e.GetClientObject());
-        if(cd) {
-            wxObject* obj = cd->GetThis();
-            wxClientData* arg = cd->GetArg();
-            clEventFunc_t func = cd->GetFuncPtr();
-            (obj->*func)(arg);
-
-            delete cd;
-            e.SetClientObject(NULL);
-        }
-    }
-
-    /**
-     * @brief Call 0 arguments function
-     */
-    void OnInternalEvent0(wxCommandEvent& e)
-    {
-        clInternalEventHandlerData* cd = reinterpret_cast<clInternalEventHandlerData*>(e.GetClientObject());
-        if(cd) {
-            wxObject* obj = cd->GetThis();
-            clEventFunc_t func = cd->GetFuncPtr();
-            (obj->*func)(NULL);
-
-            delete cd;
-            e.SetClientObject(NULL);
-        }
-    }
-};
-
-// construct a global handler here
-clInternalEventHandler clEventHandlerHelper;
+}
 
 // --------------------------------------------------------
 // Internal handler to handle queuing requests... end
@@ -1089,7 +962,7 @@ bool IsCppKeyword(const wxString& word)
 
 void MSWSetNativeTheme(wxWindow* win, const wxString& theme)
 {
-#if defined(__WXMSW__) && defined(_WIN64)
+#if defined(__WXMSW__) && defined(_WIN64) && 0
     SetWindowTheme((HWND)win->GetHWND(), theme.c_str(), NULL);
 #endif
 }
@@ -1211,41 +1084,7 @@ wxString wxImplode(const wxArrayString& arr, const wxString& glue)
     return str;
 }
 
-wxString wxShellExec(const wxString& cmd, const wxString& projectName)
-{
-    wxString filename = wxFileName::CreateTempFileName("clTempFile");
-    wxString theCommand = wxString::Format("%s > \"%s\" 2>&1", cmd.c_str(), filename.c_str());
-    WrapInShell(theCommand);
-
-    wxArrayString dummy;
-    EnvSetter es(NULL, NULL, projectName, wxEmptyString);
-    theCommand = EnvironmentConfig::Instance()->ExpandVariables(theCommand, false);
-    ProcUtils::SafeExecuteCommand(theCommand, dummy);
-
-    wxString content;
-    wxFFile fp(filename, "r");
-    if(fp.IsOpened()) {
-        fp.ReadAll(&content);
-    }
-    fp.Close();
-    clRemoveFile(filename);
-    return content;
-}
-
-bool wxIsFileSymlink(const wxFileName& filename)
-{
-#ifdef __WXMSW__
-    return false;
-#else
-    wxCharBuffer cb = filename.GetFullPath().mb_str(wxConvUTF8).data();
-    struct stat stat_buff;
-    // use lstat() otherwise, stat() will follow the actual file
-    if(::lstat(cb.data(), &stat_buff) < 0) {
-        return false;
-    }
-    return S_ISLNK(stat_buff.st_mode);
-#endif
-}
+bool wxIsFileSymlink(const wxFileName& filename) { return FileUtils::IsSymlink(filename); }
 
 wxFileName wxReadLink(const wxFileName& filename)
 {
@@ -1613,22 +1452,6 @@ wxVariant MakeIconText(const wxString& text, const wxBitmap& bmp)
     return v;
 }
 
-void PostCall(wxObject* instance, clEventFunc_t func, wxClientData* arg)
-{
-    clInternalEventHandlerData* cd = new clInternalEventHandlerData(instance, func, arg);
-    wxCommandEvent evt(wxEVT_COMMAND_CL_INTERNAL_1_ARGS);
-    evt.SetClientObject(cd);
-    EventNotifier::Get()->AddPendingEvent(evt);
-}
-
-void PostCall(wxObject* instance, clEventFunc_t func)
-{
-    clInternalEventHandlerData* cd = new clInternalEventHandlerData(instance, func);
-    wxCommandEvent evt(wxEVT_COMMAND_CL_INTERNAL_0_ARGS);
-    evt.SetClientObject(cd);
-    EventNotifier::Get()->AddPendingEvent(evt);
-}
-
 wxArrayString SplitString(const wxString& inString, bool trim)
 {
     wxArrayString lines;
@@ -1900,9 +1723,10 @@ wxString GetCppExpressionFromPos(long pos, wxStyledTextCtrl* ctrl, bool forCC)
     }
     return expression;
 }
+
 wxString& WrapWithQuotes(wxString& str)
 {
-    if(str.Contains(" ")) {
+    if(!str.empty() && str.Contains(" ") && !str.StartsWith("\"") && !str.EndsWith("\"")) {
         str.Prepend("\"").Append("\"");
     }
     return str;
@@ -1981,20 +1805,15 @@ void clRecalculateSTCHScrollBar(wxStyledTextCtrl* ctrl)
     if(endLine >= (ctrl->GetLineCount() - 1)) {
         endLine--;
     }
+
+    wxString text;
     for(int i = startLine; i <= endLine; i++) {
-        int visibleLine = (int)ctrl->DocLineFromVisible(i);      // get actual visible line, folding may offset lines
-        int endPosition = ctrl->GetLineEndPosition(visibleLine); // get character position from begin
-        int beginPosition = ctrl->PositionFromLine(visibleLine); // and end of line
-
-        wxPoint beginPos = ctrl->PointFromPosition(beginPosition);
-        wxPoint endPos = ctrl->PointFromPosition(endPosition);
-
-        int curLen = endPos.x - beginPos.x;
-
-        if(maxPixel < curLen) // If its the largest line yet
-            maxPixel = curLen;
+        int visibleLine = (int)ctrl->DocLineFromVisible(i); // get actual visible line, folding may offset lines
+        wxString line_text = ctrl->GetLine(visibleLine);
+        text = line_text.length() > text.length() ? line_text : text;
     }
 
+    maxPixel = ctrl->TextWidth(0, text);
     if(maxPixel == 0) {
         maxPixel++; // make sure maxPixel is valid
     }
@@ -2306,4 +2125,16 @@ bool clIsWaylandSession()
 #else
     return false;
 #endif
+}
+
+bool clShowFileTypeSelectionDialog(wxWindow* parent, const wxArrayString& initial_selection, wxArrayString* selected)
+{
+    SelectFileTypesDialog dlg(parent, initial_selection);
+    if(dlg.ShowModal() != wxID_OK) {
+        return false;
+    }
+
+    auto res = dlg.GetValue();
+    selected->swap(res);
+    return true;
 }

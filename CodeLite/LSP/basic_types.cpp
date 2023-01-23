@@ -1,15 +1,32 @@
 #include "LSP/basic_types.h"
 
 #include "JSON.h"
+#include "clModuleLogger.hpp"
+#include "cl_standard_paths.h"
 #include "file_logger.h"
 
 #include <wx/filesys.h>
 
-//===------------------------------------------------
-// Request
-//===------------------------------------------------
+// our logger object
+clModuleLogger LSP_LOG_HANDLER;
+
 namespace LSP
 {
+
+clModuleLogger& GetLogHandle() { return LSP_LOG_HANDLER; }
+
+void Initialise()
+{
+    static bool initialised = false;
+    if(initialised)
+        return;
+
+    wxFileName logfile_path{ clStandardPaths::Get().GetUserDataDir(), "lsp.log" };
+    logfile_path.AppendDir("logs");
+    logfile_path.Mkdir(wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
+    LSP_LOG_HANDLER.Open(logfile_path);
+    initialised = true;
+}
 
 //===----------------------------------------------------------------------------------
 // TextDocumentIdentifier
@@ -83,26 +100,35 @@ JSONItem TextDocumentItem::ToJSON(const wxString& name) const
 //===----------------------------------------------------------------------------------
 // TextDocumentContentChangeEvent
 //===----------------------------------------------------------------------------------
-void TextDocumentContentChangeEvent::FromJSON(const JSONItem& json) { m_text = json.namedObject("text").toString(); }
+void TextDocumentContentChangeEvent::FromJSON(const JSONItem& json)
+{
+    m_text = json.namedObject("text").toString();
+    if(json.hasNamedObject("range")) {
+        m_range.FromJSON(json["range"]);
+    }
+}
 
 JSONItem TextDocumentContentChangeEvent::ToJSON(const wxString& name) const
 {
     JSONItem json = JSONItem::createObject(name);
+    if(m_range.IsOk()) {
+        json.append(m_range.ToJSON("range"));
+    }
     json.addProperty("text", m_text);
     return json;
 }
 
 void Range::FromJSON(const JSONItem& json)
 {
-    m_start.FromJSON(json.namedObject("start"));
-    m_end.FromJSON(json.namedObject("end"));
+    m_start.FromJSON(json["start"]);
+    m_end.FromJSON(json["end"]);
 }
 
 JSONItem Range::ToJSON(const wxString& name) const
 {
     JSONItem json = JSONItem::createObject(name);
     json.append(m_start.ToJSON("start"));
-    json.append(m_start.ToJSON("end"));
+    json.append(m_end.ToJSON("end"));
     return json;
 }
 

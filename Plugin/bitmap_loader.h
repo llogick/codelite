@@ -36,15 +36,6 @@
 #include <wx/filename.h>
 #include <wx/imaglist.h>
 
-#ifndef __WXMSW__
-namespace std
-{
-template <> struct hash<FileExtManager::FileType> {
-    size_t operator()(const FileExtManager::FileType& t) const { return hash<int>{}((int)t); }
-};
-} // namespace std
-#endif
-
 class WXDLLIMPEXP_SDK clMimeBitmaps
 {
     /// Maps between image-id : index in the list
@@ -153,9 +144,7 @@ protected:
     wxFileName m_zipPath;
     std::unordered_map<wxString, wxBitmap> m_toolbarsBitmaps;
     std::unordered_map<wxString, wxString> m_manifest;
-    std::unordered_map<FileExtManager::FileType, int> m_fileIndexMap;
-    bool m_bMapPopulated;
-    size_t m_toolbarIconSize;
+    std::unordered_map<int, int> m_fileIndexMap;
     clMimeBitmaps m_mimeBitmaps;
 
 protected:
@@ -164,6 +153,8 @@ protected:
 private:
     BitmapLoader(bool darkTheme);
     virtual ~BitmapLoader();
+
+    void AddBitmapInternal(const wxBitmapBundle& bundle, const wxString& base_name);
 
 public:
     clMimeBitmaps& GetMimeBitmaps() { return m_mimeBitmaps; }
@@ -202,11 +193,12 @@ protected:
 
 private:
     void Initialize(bool darkTheme);
-    static void SetActiveBitmaps();
-    void OnSysColoursChanged(clCommandEvent& event);
+    void LoadSVGFiles(bool darkTheme);
+    std::unordered_map<wxString, wxBitmapBundle>* GetBundles(bool darkTheme) const;
 
 public:
     const wxBitmap& LoadBitmap(const wxString& name, int requestedSize = 16);
+    bool GetIconBundle(const wxString& name, wxIconBundle* bundle);
 };
 
 wxDECLARE_EXPORTED_EVENT(WXDLLIMPEXP_SDK, wxEVT_BITMAPS_UPDATED, clCommandEvent);
@@ -229,4 +221,4 @@ public:
     BitmapLoader* GetLoader();
     void SysColoursChanged();
 };
-#endif // BITMAP_LOADER_H
+#endif

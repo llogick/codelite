@@ -44,6 +44,7 @@
 #include "file_logger.h"
 #include "fileexplorer.h"
 #include "fileview.h"
+#include "findinfilesdlg.h"
 #include "frame.h"
 #include "generalinfo.h"
 #include "language.h"
@@ -270,13 +271,12 @@ void PluginManager::Load()
             m_plugins[plugin->GetShortName()] = plugin;
 
             // Load the toolbar
-            plugin->CreateToolBar(GetToolBar());
+            plugin->CreateToolBar(clMainFrame::Get()->GetPluginsToolBar());
 
             // Keep the dynamic load library
             m_dl.push_back(dl);
         }
         clMainFrame::Get()->GetDockingManager().Update();
-        GetToolBar()->Realize();
 
         // Let the plugins plug their menu in the 'Plugins' menu at the menu bar
         // the create menu will be placed as a sub menu of the 'Plugin' menu
@@ -846,18 +846,29 @@ void PluginManager::LoadWorkspaceSession(const wxFileName& workspaceFile)
 
 void PluginManager::OpenFindInFileForPath(const wxString& path)
 {
-    wxCommandEvent ff(wxEVT_COMMAND_MENU_SELECTED, XRCID("find_in_files"));
     wxArrayString paths;
     paths.Add(path);
-    ff.SetClientData(new wxArrayString(paths));
-    clMainFrame::Get()->GetEventHandler()->AddPendingEvent(ff);
+    OpenFindInFileForPaths(paths);
 }
 
 void PluginManager::OpenFindInFileForPaths(const wxArrayString& paths)
 {
-    wxCommandEvent ff(wxEVT_COMMAND_MENU_SELECTED, XRCID("find_in_files"));
-    ff.SetClientData(new wxArrayString(paths));
-    clMainFrame::Get()->GetEventHandler()->AddPendingEvent(ff);
+    // Fire the wxEVT_CMD_FIND_IN_FILES_SHOWING showing event
+    clFindInFilesEvent eventFifShowing(wxEVT_FINDINFILES_DLG_SHOWING);
+    if(EventNotifier::Get()->ProcessEvent(eventFifShowing))
+        return;
+
+    // Prepare the fif dialog
+    FindInFilesDialog dlg(EventNotifier::Get()->TopFrame());
+    if(!paths.empty()) {
+        dlg.SetSearchPaths(wxJoin(paths, ';'), true);
+    }
+    // Show it
+    if(dlg.ShowDialog() == wxID_OK) {
+        // Notify about the dialog dismissal
+        clFindInFilesEvent eventDismiss(wxEVT_FINDINFILES_DLG_DISMISSED);
+        EventNotifier::Get()->ProcessEvent(eventDismiss);
+    }
 }
 
 void PluginManager::ShowOutputPane(const wxString& selectedWindow) { ManagerST::Get()->ShowOutputPane(selectedWindow); }
@@ -917,9 +928,9 @@ void PluginManager::ShowToolBar(bool show)
 
 bool PluginManager::IsToolBarShown() const
 {
-    if(clMainFrame::Get()->GetMainToolBar()) {
+    if(clMainFrame::Get()->GetPluginsToolBar()) {
         // we have native toolbar
-        return clMainFrame::Get()->GetMainToolBar()->IsShown();
+        return clMainFrame::Get()->GetPluginsToolBar()->IsShown();
     }
     return false;
 }
@@ -931,7 +942,7 @@ bool PluginManager::CloseEditor(IEditor* editor, bool prompt)
 
 clEditorBar* PluginManager::GetNavigationBar() { return clMainFrame::Get()->GetMainBook()->GetEditorBar(); }
 
-clToolBar* PluginManager::GetToolBar() { return clMainFrame::Get()->GetMainToolBar(); }
+clToolBarGeneric* PluginManager::GetToolBar() { return clMainFrame::Get()->GetPluginsToolBar(); }
 
 void PluginManager::DisplayMessage(const wxString& message, int flags,
                                    const std::vector<std::pair<wxWindowID, wxString>>& buttons)
@@ -949,7 +960,7 @@ void PluginManager::ShowBuildMenu(clToolBar* toolbar, wxWindowID buttonId)
     clMainFrame::Get()->ShowBuildMenu(toolbar, buttonId);
 }
 
-clMenuBar* PluginManager::GetMenuBar() { return clMainFrame::Get()->GetMainMenuBar(); }
+wxMenuBar* PluginManager::GetMenuBar() { return clMainFrame::Get()->GetMainMenuBar(); }
 
 void PluginManager::OpenFileAndAsyncExecute(const wxString& fileName, std::function<void(IEditor*)>&& func)
 {

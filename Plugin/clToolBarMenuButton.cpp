@@ -1,6 +1,7 @@
 #include "clToolBarMenuButton.h"
 
-clToolBarMenuButton::clToolBarMenuButton(clToolBar* parent, wxWindowID winid, size_t bmpId, const wxString& label)
+clToolBarMenuButton::clToolBarMenuButton(clToolBarGeneric* parent, wxWindowID winid, size_t bmpId,
+                                         const wxString& label)
     : clToolBarButtonBase(parent, winid, bmpId, label, kHasMenu)
 {
 }

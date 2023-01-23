@@ -27,7 +27,6 @@
 // clang-format off
 #include "bitmap_loader.h"
 #include "bookmark_manager.h"
-#include "clBitmapOverlayCtrl.h"
 #include "cl_config.h"
 #include "codelite_events.h"
 #include "drawingutils.h"
@@ -79,8 +78,23 @@ void PostCommandEvent(wxWindow* destination, wxWindow* FocusedControl)
     wxPostEvent(destination, event);
 }
 
+namespace
+{
+wxBorder get_border_simple_theme_aware_bit()
+{
+#ifdef __WXMAC__
+    return wxBORDER_SIMPLE;
+#elif defined(__WXGTK__)
+    return wxBORDER_STATIC;
+#else
+    return clSystemSettings::Get().IsDark() ? wxBORDER_SIMPLE : wxBORDER_STATIC;
+#endif
+}
+} // namespace
+
 clPluginsFindBar::clPluginsFindBar(wxWindow* parent, wxWindowID id)
-    : QuickFindBarBase(parent, id)
+    : QuickFindBarBase(parent, id, wxDefaultPosition, wxDefaultSize,
+                       wxTAB_TRAVERSAL | get_border_simple_theme_aware_bit())
     , m_sci(NULL)
     , m_lastTextPtr(NULL)
     , m_eventsConnected(false)
@@ -98,7 +112,7 @@ clPluginsFindBar::clPluginsFindBar(wxWindow* parent, wxWindowID id)
     m_toolbar->SetMiniToolBar(true);
 
     clBitmapList* bitmaps = new clBitmapList;
-    m_toolbar->AddTool(wxID_CLOSE, _("Close"), bitmaps->Add("file_close"), _("Close"), wxITEM_NORMAL);
+    m_toolbar->AddTool(ID_TOOL_CLOSE, _("Close"), bitmaps->Add("file_close"), _("Close"), wxITEM_NORMAL);
     m_toolbar->AddSeparator();
     m_matchesFound = new wxStaticText(m_toolbar, wxID_ANY, "", wxDefaultPosition, wxSize(250, -1),
                                       wxST_NO_AUTORESIZE | wxALIGN_LEFT);
@@ -113,7 +127,7 @@ clPluginsFindBar::clPluginsFindBar(wxWindow* parent, wxWindowID id)
     m_toolbar->AssignBitmaps(bitmaps);
 
     m_toolbar->Realize();
-    m_toolbar->Bind(wxEVT_TOOL, &clPluginsFindBar::OnHide, this, wxID_CLOSE);
+    m_toolbar->Bind(wxEVT_TOOL, &clPluginsFindBar::OnHide, this, ID_TOOL_CLOSE);
     m_toolbar->Bind(
         wxEVT_TOOL,
         [&](wxCommandEvent& e) {
@@ -183,7 +197,7 @@ clPluginsFindBar::clPluginsFindBar(wxWindow* parent, wxWindowID id)
     // Make sure that the 'Replace' field is selected when we hit TAB while in the 'Find' field
     m_textCtrlReplace->MoveAfterInTabOrder(m_textCtrlFind);
     // Bind(wxEVT_PAINT, &clPluginsFindBar::OnPaint, this);
-    Bind(wxEVT_ERASE_BACKGROUND, [](wxEraseEvent& e) { wxUnusedVar(e); });
+    // Bind(wxEVT_ERASE_BACKGROUND, [](wxEraseEvent& e) { wxUnusedVar(e); });
     GetSizer()->Fit(this);
     Layout();
 }
@@ -1237,4 +1251,11 @@ void clPluginsFindBar::OnPaint(wxPaintEvent& e)
     dc.SetBrush(clSystemSettings::GetDefaultPanelColour());
     dc.SetPen(clSystemSettings::GetDefaultPanelColour());
     dc.DrawRectangle(GetClientRect());
+}
+
+bool clPluginsFindBar::HasFocus() const
+{
+    wxWindow* win = wxWindow::FindFocus();
+    return win == m_textCtrlFind || win == m_buttonFind || win == m_buttonFindPrev || win == m_buttonFindAll ||
+           win == m_textCtrlReplace || win == m_buttonReplace || win == m_buttonReplaceAll;
 }

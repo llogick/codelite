@@ -153,7 +153,7 @@ SnipWiz::~SnipWiz()
 }
 //------------------------------------------------------------
 
-void SnipWiz::CreateToolBar(clToolBar* toolbar) { wxUnusedVar(toolbar); }
+void SnipWiz::CreateToolBar(clToolBarGeneric* toolbar) { wxUnusedVar(toolbar); }
 //------------------------------------------------------------
 
 void SnipWiz::CreatePluginMenu(wxMenu* pluginsMenu)

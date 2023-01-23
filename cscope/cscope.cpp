@@ -100,18 +100,18 @@ Cscope::Cscope(IManager* manager)
     // Register keyboard shortcuts for CScope
     clKeyboardManager::Get()->AddAccelerator(
         _("CScope"),
-        { { "cscope_find_user_symbol", _("Find"), "Alt-)" },
-          { "cscope_find_symbol", _("Find selected text"), "Alt-0" },
-          { "cscope_find_global_definition", _("Find this global definition"), "Alt-1" },
-          { "cscope_functions_calling_this_function", _("Find functions called by this function"), "Alt-2" },
-          { "cscope_functions_called_by_this_function", _("Find functions calling this function"), "Alt-3" },
-          { "cscope_create_db", _("Create CScope database"), "Alt-4" } });
+        { { "cscope_find_user_symbol", _("Find"), "Ctrl-)" },
+          { "cscope_find_symbol", _("Find selected text"), "Ctrl-0" },
+          { "cscope_find_global_definition", _("Find this global definition"), "Ctrl-1" },
+          { "cscope_functions_calling_this_function", _("Find functions called by this function"), "Ctrl-2" },
+          { "cscope_functions_called_by_this_function", _("Find functions calling this function"), "Ctrl-3" },
+          { "cscope_create_db", _("Create CScope database"), "Ctrl-4" } });
     EventNotifier::Get()->Bind(wxEVT_CONTEXT_MENU_EDITOR, &Cscope::OnEditorContentMenu, this);
 }
 
 Cscope::~Cscope() {}
 
-void Cscope::CreateToolBar(clToolBar* toolbar)
+void Cscope::CreateToolBar(clToolBarGeneric* toolbar)
 {
     // support both toolbars icon size
     int size = m_mgr->GetToolbarIconSize();

@@ -28,10 +28,10 @@
 
 #include "PhpSFTPHandler.h"
 #include "XDebugManager.h"
-#include "clThemedMenuBar.hpp"
 #include "php_event.h"
 #include "plugin.h"
 #include "plugin_settings.h"
+
 #include <cl_command_event.h>
 #include <wx/filename.h>
 #include <wx/sharedptr.h>
@@ -76,31 +76,25 @@ public:
     void EnsureAuiPaneIsVisible(const wxString& paneName, bool update = false);
     void FinalizeStartup();
 
-    PHPDebugPane* GetDebuggerPane()
-    {
-        return m_debuggerPane;
-    }
+    PHPDebugPane* GetDebuggerPane() { return m_debuggerPane; }
 
 protected:
     bool IsWorkspaceViewDetached();
     void DoOpenWorkspace(const wxString& filename, bool createIfMissing = false, bool createProjectFromSources = false);
-    void DoPlaceMenuBar(clMenuBar* menuBar);
+    void DoPlaceMenuBar(wxMenuBar* menuBar);
     void DoEnsureXDebugPanesVisible(const wxString& selectWindow = "");
 
 public:
     //--------------------------------------------
     // Abstract methods
     //--------------------------------------------
-    virtual void CreateToolBar(clToolBar* toolbar);
+    virtual void CreateToolBar(clToolBarGeneric* toolbar);
     virtual void CreatePluginMenu(wxMenu* pluginsMenu);
     virtual void HookPopupMenu(wxMenu* menu, MenuType type);
     virtual void UnPlug();
     void RunXDebugDiagnostics();
 
-    IManager* GetManager()
-    {
-        return m_mgr;
-    }
+    IManager* GetManager() { return m_mgr; }
     // Event handlers
 
     void SetEditorActive(IEditor* editor);

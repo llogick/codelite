@@ -1,14 +1,11 @@
 Debug Adapter Client
 ---
 
-- Add watches
+- support attach to process
+- supprot debugging core
+- deleting breakpoints does not work
 
 others:
 ----
 
-- fsw: add interperter entry
-
-Open Windows View:
----
-
-- Use different colour to mark modified editors
+- clTreeCtrl: replace the current search with a panel that shows when clicking "/"

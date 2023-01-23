@@ -31,6 +31,7 @@
 #include "DAPModuleView.h"
 #include "DAPTextView.h"
 #include "DAPTooltip.hpp"
+#include "DAPWatchesView.h"
 #include "DapDebuggerSettingsDlg.h"
 #include "DapLocator.hpp"
 #include "DapLoggingHelper.hpp"
@@ -76,6 +77,7 @@ constexpr bool IS_WINDOWS = false;
 const wxString DAP_MAIN_VIEW = _("Thread, stacks & variables");
 const wxString DAP_BREAKPOINTS_VIEW = _("Breakpoints");
 const wxString DAP_OUTPUT_VIEW = _("Output");
+const wxString DAP_WATCHES_VIEW = _("Watches");
 
 const wxString DAP_MESSAGE_BOX_TITLE = "CodeLite - Debug Adapter Client";
 
@@ -149,7 +151,8 @@ DebugAdapterClient::DebugAdapterClient(IManager* manager)
     , m_isPerspectiveLoaded(false)
 {
     // setup custom logger for this module
-    wxFileName logfile(clStandardPaths::Get().GetUserDataDir(), "debug-adapter-client.log");
+    wxFileName logfile(clStandardPaths::Get().GetUserDataDir(), "dap.log");
+    logfile.AppendDir("logs");
 
     LOG.Open(logfile);
     LOG.SetCurrentLogLevel(FileLogger::Dbg);
@@ -310,7 +313,7 @@ wxString DebugAdapterClient::GetFilenameForDisplay(const wxString& fileName) con
     }
 }
 
-void DebugAdapterClient::CreateToolBar(clToolBar* toolbar) { wxUnusedVar(toolbar); }
+void DebugAdapterClient::CreateToolBar(clToolBarGeneric* toolbar) { wxUnusedVar(toolbar); }
 
 void DebugAdapterClient::CreatePluginMenu(wxMenu* pluginsMenu)
 {
@@ -473,7 +476,7 @@ void DebugAdapterClient::OnDebugStart(clDebugEvent& event)
             env = StringUtils::ResolveEnvList(conf->GetEnvironment());
             wxFileName fnExepath(exepath);
             if(fnExepath.IsRelative()) {
-                fnExepath.MakeAbsolute(workspace->GetFileName().GetPath());
+                fnExepath.MakeAbsolute(workspace->GetDir());
             }
             exepath = fnExepath.GetFullPath();
         }
@@ -560,6 +563,7 @@ void DebugAdapterClient::LoadPerspective()
     ShowPane(DAP_MAIN_VIEW, true);
     ShowPane(DAP_BREAKPOINTS_VIEW, true);
     ShowPane(DAP_OUTPUT_VIEW, true);
+    ShowPane(DAP_WATCHES_VIEW, true);
 
     // Hide the output pane
     wxAuiPaneInfo& pi = m_mgr->GetDockingManager()->GetPane("Output View");
@@ -595,6 +599,15 @@ void DebugAdapterClient::DestroyUI()
         }
         m_threadsView->Destroy();
         m_threadsView = nullptr;
+    }
+
+    if(m_watchesView) {
+        wxAuiPaneInfo& pi = m_mgr->GetDockingManager()->GetPane(DAP_WATCHES_VIEW);
+        if(pi.IsOk()) {
+            m_mgr->GetDockingManager()->DetachPane(m_watchesView);
+        }
+        m_watchesView->Destroy();
+        m_watchesView = nullptr;
     }
 
     if(m_breakpointsView) {
@@ -643,8 +656,21 @@ void DebugAdapterClient::InitializeUI()
                                                                .Caption(DAP_MAIN_VIEW)
                                                                .Name(DAP_MAIN_VIEW));
     }
+
+    if(!m_watchesView) {
+        m_watchesView = new DAPWatchesView(parent, this, LOG);
+        m_mgr->GetDockingManager()->AddPane(m_watchesView, wxAuiPaneInfo()
+                                                               .MinSize(300, 300)
+                                                               .Layer(10)
+                                                               .Left()
+                                                               .Position(1)
+                                                               .CloseButton(false)
+                                                               .Caption(DAP_WATCHES_VIEW)
+                                                               .Name(DAP_WATCHES_VIEW));
+    }
+
     if(!m_breakpointsView) {
-        m_breakpointsView = new DAPBreakpointsView(parent, this);
+        m_breakpointsView = new DAPBreakpointsView(parent, this, LOG);
         m_mgr->GetDockingManager()->AddPane(m_breakpointsView, wxAuiPaneInfo()
                                                                    .MinSize(300, 300)
                                                                    .Layer(5)
@@ -824,7 +850,7 @@ void DebugAdapterClient::OnDebugQuickDebug(clDebugEvent& event)
     if(fnExepath.IsRelative()) {
         wxString cwd;
         if(clFileSystemWorkspace::Get().IsOpen()) {
-            cwd = clFileSystemWorkspace::Get().GetFileName().GetPath();
+            cwd = clFileSystemWorkspace::Get().GetDir();
         }
         fnExepath.MakeAbsolute(cwd);
     }
@@ -957,6 +983,9 @@ void DebugAdapterClient::OnDapInitializedEvent(DAPEvent& event)
     m_session.need_to_set_breakpoints = true;
     m_client.SetFunctionBreakpoints({ main_bp });
 
+    if(m_breakpointsHelper) {
+        m_breakpointsHelper->ApplyBreakpoints(wxEmptyString);
+    }
     // place all breakpoints
     m_client.ConfigurationDone();
 }
@@ -979,6 +1008,9 @@ void DebugAdapterClient::OnDapStoppedEvent(DAPEvent& event)
     if(stopped_data) {
         m_client.GetThreads();
     }
+
+    // update watches if needed
+    UpdateWatches();
 }
 
 void DebugAdapterClient::OnDapThreadsResponse(DAPEvent& event)
@@ -1029,13 +1061,22 @@ void DebugAdapterClient::OnDapVariablesResponse(DAPEvent& event)
     auto response = event.GetDapResponse()->As<dap::VariablesResponse>();
     CHECK_PTR_RET(response);
     CHECK_PTR_RET(m_threadsView);
-    if(response->context == dap::EvaluateContext::HOVER) {
+    switch(response->context) {
+    case dap::EvaluateContext::HOVER:
         if(m_tooltip) {
             m_tooltip->UpdateChildren(response->refId, response);
         }
-    } else {
+        break;
+    case dap::EvaluateContext::WATCH:
+        // update the watches view
+        if(m_watchesView) {
+            m_watchesView->UpdateChildren(response->refId, response);
+        }
+        break;
+    default:
         // assume its the variables view
         m_threadsView->UpdateVariables(response->refId, response);
+        break;
     }
 }
 
@@ -1105,6 +1146,16 @@ void DebugAdapterClient::OnDapRunInTerminal(DAPEvent& event)
 /// --------------------------------------------------------------------------
 /// dap events stops here
 /// --------------------------------------------------------------------------
+
+void DebugAdapterClient::UpdateWatches()
+{
+    if(!m_client.IsConnected()) {
+        return;
+    }
+
+    CHECK_PTR_RET(m_watchesView);
+    m_watchesView->Update(m_threadsView->GetCurrentFrameId());
+}
 
 void DebugAdapterClient::RefreshBreakpointsMarkersForEditor(IEditor* editor) { CHECK_PTR_RET(editor); }
 
@@ -1202,6 +1253,7 @@ void DebugAdapterClient::StartAndConnectToDapServer()
 
     // Fire CodeLite IDE event indicating that a debug session started
     clDebugEvent cl_event{ wxEVT_DEBUG_STARTED };
+    cl_event.SetDebuggerName(m_session.dap_server.GetName());
     EventNotifier::Get()->AddPendingEvent(cl_event);
 
     // construct new client with the transport
@@ -1384,4 +1436,12 @@ wxString DebugAdapterClient::ReplacePlaceholders(const wxString& str) const
 
     wxString command = MacroManager::Instance()->Expand(str, clGetManager(), project_name);
     return command;
+}
+
+int DebugAdapterClient::GetCurrentFrameId() const
+{
+    if(!m_threadsView) {
+        return wxNOT_FOUND;
+    }
+    return m_threadsView->GetCurrentFrameId();
 }

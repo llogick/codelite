@@ -44,6 +44,7 @@
 #include "macros.h"
 #include "scGlobals.h"
 #include "workspace.h"
+#include "wxCustomControls.hpp"
 
 #include <wx/wxprec.h>
 #ifndef WX_PRECOMP
@@ -168,7 +169,7 @@ void SpellCheck::Init()
     m_topWin->Bind(wxEVT_MENU, &SpellCheck::OnIgnoreWord, this, SPC_IGNORE_WORD);
 }
 // ------------------------------------------------------------
-void SpellCheck::CreateToolBar(clToolBar* toolbar)
+void SpellCheck::CreateToolBar(clToolBarGeneric* toolbar)
 {
     int size = m_mgr->GetToolbarIconSize();
     auto images = toolbar->GetBitmapsCreateIfNeeded();
@@ -413,7 +414,7 @@ void SpellCheck::OnTimer(wxTimerEvent& e)
 void SpellCheck::SetCheckContinuous(bool value)
 {
     m_options.SetCheckContinuous(value);
-    clToolBarButtonBase* btn = clGetManager()->GetToolBar()->FindById(XRCID(s_contCheckID.ToUTF8()));
+    auto btn = clGetManager()->GetToolBar()->FindById(XRCID(s_contCheckID.ToUTF8()));
 
     if(value) {
         m_pLastEditor = nullptr;

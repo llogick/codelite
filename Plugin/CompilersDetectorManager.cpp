@@ -32,13 +32,14 @@
 #include "CompilerLocatorGCC.h"
 #include "CompilerLocatorMSVC.h"
 #include "CompilerLocatorMSYS2.hpp"
-#include "CompilerLocatorMinGW.h"
+#include "CompilerLocatorMSYS2Clang.hpp"
 #include "CompilerLocatorRustc.hpp"
 #include "GCCMetadata.hpp"
 #include "JSON.h"
 #include "build_settings_config.h"
 #include "cl_config.h"
 #include "environmentconfig.h"
+#include "file_logger.h"
 #include "fileutils.h"
 #include "macros.h"
 
@@ -53,11 +54,14 @@
 CompilersDetectorManager::CompilersDetectorManager()
 {
 #ifdef __WXMSW__
-    m_detectors.push_back(ICompilerLocator::Ptr_t(new CompilerLocatorMinGW()));
-    m_detectors.push_back(ICompilerLocator::Ptr_t(new CompilerLocatorCLANG()));
     m_detectors.push_back(ICompilerLocator::Ptr_t(new CompilerLocatorMSVC()));
     m_detectors.push_back(ICompilerLocator::Ptr_t(new CompilerLocatorCygwin()));
-    m_detectors.push_back(ICompilerLocator::Ptr_t(new CompilerLocatorMSYS2()));
+    m_detectors.push_back(ICompilerLocator::Ptr_t(new CompilerLocatorMSYS2Usr()));
+    m_detectors.push_back(ICompilerLocator::Ptr_t(new CompilerLocatorMSYS2Clang64()));
+    m_detectors.push_back(ICompilerLocator::Ptr_t(new CompilerLocatorMSYS2Mingw64()));
+    m_detectors.push_back(ICompilerLocator::Ptr_t(new CompilerLocatorMSYS2ClangUsr()));
+    m_detectors.push_back(ICompilerLocator::Ptr_t(new CompilerLocatorMSYS2ClangClang64()));
+    m_detectors.push_back(ICompilerLocator::Ptr_t(new CompilerLocatorMSYS2ClangMingw64()));
 
 #elif defined(__WXGTK__)
     m_detectors.push_back(ICompilerLocator::Ptr_t(new CompilerLocatorGCC()));
@@ -78,14 +82,15 @@ CompilersDetectorManager::~CompilersDetectorManager() {}
 
 bool CompilersDetectorManager::Locate()
 {
-    wxBusyInfo bi(_("Searching for installed compilers..."));
-
     // Apply the enviroment before searching for compilers
     // Some of the locators are relying on PATH environment
     // variable (e.g. MinGW)
+    wxBusyCursor bc;
     EnvSetter env;
     m_compilersFound.clear();
     wxStringSet_t S;
+
+    clDEBUG() << "scanning for compilers..." << endl;
     for(auto locator : m_detectors) {
         if(locator->Locate()) {
             for(auto compiler : locator->GetCompilers()) {
@@ -110,6 +115,8 @@ bool CompilersDetectorManager::Locate()
     for(auto compiler : m_compilersFound) {
         MSWFixClangToolChain(compiler, m_compilersFound);
     }
+
+    clDEBUG() << "scanning for compilers...completed" << endl;
     return !m_compilersFound.empty();
 }
 

@@ -25,6 +25,7 @@
 #ifndef PLUGINMANAGER_H
 #define PLUGINMANAGER_H
 
+#include "clToolBar.h"
 #include "debugger.h"
 #include "dynamiclibrary.h"
 #include "plugin.h"
@@ -38,7 +39,6 @@
 #include <wx/string.h>
 #include <wx/treectrl.h>
 
-class clToolBar;
 class clEditorBar;
 class wxBookCtrlBase;
 class EnvironmentConfig;
@@ -85,8 +85,8 @@ public:
     //------------------------------------
     void EnableClangCodeCompletion(bool b) override;
     IEditor* GetActiveEditor() override;
-    clToolBar* GetToolBar() override;
-    clMenuBar* GetMenuBar() override;
+    clToolBarGeneric* GetToolBar() override;
+    wxMenuBar* GetMenuBar() override;
     IConfigTool* GetConfigTool() override;
     TreeItemInfo GetSelectedTreeItemInfo(TreeType type) override;
     clTreeCtrl* GetFileExplorerTree() override;
@@ -187,8 +187,8 @@ public:
     /**
      * @brief display message to the user using the info bar
      */
-    virtual void DisplayMessage(const wxString& message, int flags = wxICON_INFORMATION,
-                                const std::vector<std::pair<wxWindowID, wxString>>& buttons = {}) override;
+    void DisplayMessage(const wxString& message, int flags = wxICON_INFORMATION,
+                        const std::vector<std::pair<wxWindowID, wxString>>& buttons = {}) override;
 
     //------------------------------------
     // End of IManager interface

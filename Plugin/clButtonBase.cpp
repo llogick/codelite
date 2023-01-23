@@ -24,7 +24,7 @@
 #if defined(__WXMSW__) || defined(__WXGTK__)
 #define BUTTON_RADIUS 0.0
 #else
-#define BUTTON_RADIUS 3.0
+#define BUTTON_RADIUS 0.0
 #endif
 
 #if defined(__WXMSW__) || defined(__WXMAC__)
@@ -401,7 +401,14 @@ void clButtonBase::Render(wxDC& dc)
 
     if(HasDropDownMenu()) {
         // Draw an arrow
-        DrawingUtils::DrawDropDownArrow(this, dc, arrow_rect, textColour);
+        int flags = wxCONTROL_NONE;
+        if(isDisabled)
+            flags |= wxCONTROL_DISABLED;
+
+        if(HasFocus())
+            flags |= wxCONTROL_FOCUSED;
+
+        DrawingUtils::DrawDropDownArrow(this, dc, arrow_rect, flags, textColour);
     }
 
     if(HasFocus()) {

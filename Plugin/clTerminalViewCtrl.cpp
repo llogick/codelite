@@ -16,6 +16,19 @@ class MyAnsiCodeRenderer : public clControlWithItemsRowRenderer
     wxFont m_font;
     clDataViewListCtrl* m_ctrl = nullptr;
 
+private:
+    void DoRenderBackground(wxDC& dc, const wxRect& rect, const clColours& colours)
+    {
+        wxColour bg_colour = colours.GetBgColour();
+        if(clSystemSettings::IsDark() && DrawingUtils::IsDark(colours.GetBgColour())) {
+            bg_colour = clSystemSettings::GetColour(wxSYS_COLOUR_LISTBOX);
+        }
+
+        dc.SetBrush(bg_colour);
+        dc.SetPen(bg_colour);
+        dc.DrawRectangle(rect);
+    }
+
 public:
     MyAnsiCodeRenderer(clDataViewListCtrl* ctrl)
         : m_ctrl(ctrl)
@@ -25,9 +38,15 @@ public:
 
     void SetFont(const wxFont& f) { this->m_font = f; }
 
+    void RenderBackground(wxDC& dc, const wxRect& rect, long tree_style, const clColours& colours) override
+    {
+        wxUnusedVar(tree_style);
+        DoRenderBackground(dc, rect, colours);
+    }
+
     /// just the draw the item background
-    void RenderBackground(wxDC& dc, long tree_style, const clColours& colours, int row_index,
-                          clRowEntry* entry) override
+    void RenderItemBackground(wxDC& dc, long tree_style, const clColours& colours, int row_index,
+                              clRowEntry* entry) override
     {
         wxUnusedVar(dc);
         wxUnusedVar(tree_style);
@@ -37,7 +56,7 @@ public:
     }
 
     /// render item background and all text and stuff
-    void Render(wxWindow* window, wxDC& dc, const clColours& colours, int row_index, clRowEntry* entry) override
+    void RenderItem(wxWindow* window, wxDC& dc, const clColours& colours, int row_index, clRowEntry* entry) override
     {
         wxUnusedVar(window);
 
@@ -45,17 +64,26 @@ public:
         handler.Reset();
         handler.Parse(entry->GetLabel(0));
 
+        // draw item background
+        DoRenderBackground(dc, entry->GetItemRect(), colours);
+
+        // initialise the default style
+        clRenderDefaultStyle ds;
+        ds.font = m_font;
+
         if(entry->IsSelected()) {
+            ds.bg_colour = colours.GetSelItemBgColour();
+            ds.fg_colour = colours.GetSelItemTextColour();
+
             dc.SetPen(colours.GetSelItemBgColour());
             dc.SetBrush(colours.GetSelItemBgColour());
             dc.DrawRectangle(entry->GetItemRect());
+            handler.RenderNoStyle(dc, ds, 0, entry->GetItemRect(), colours.IsLightTheme());
+        } else {
+            ds.bg_colour = colours.GetItemBgColour();
+            ds.fg_colour = colours.GetItemTextColour();
+            handler.Render(dc, ds, 0, entry->GetItemRect(), colours.IsLightTheme());
         }
-
-        clRenderDefaultStyle ds;
-        ds.bg_colour = colours.GetBgColour();
-        ds.fg_colour = colours.GetItemTextColour();
-        ds.font = m_font;
-        handler.Render(dc, ds, 0, entry->GetItemRect(), colours.IsLightTheme());
     }
 };
 } // namespace
@@ -96,12 +124,13 @@ void clTerminalViewCtrl::ApplyStyle()
         if(!f.IsOk()) {
             f = lexer->GetFontForStyle(0, this);
         }
+
         r->SetFont(f);
         clDataViewListCtrl::SetDefaultFont(f);
 
+        // construct colours based on the current lexer
         clColours colours;
-        colours.InitFromColour(clSystemSettings::GetDefaultPanelColour());
-        colours.SetItemTextColour(clSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT));
+        colours.FromLexer(lexer);
         SetColours(colours);
     }
 }

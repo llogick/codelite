@@ -44,11 +44,22 @@
 #include <wx/arrstr.h>
 #include <wx/clntdata.h>
 
+namespace
+{
+void get_caption_colours(wxColour* bg_colour, wxColour* text_colour)
+{
+    *bg_colour = clSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHT);
+    *text_colour = clSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHTTEXT);
+}
+} // namespace
+
 WelcomePage::WelcomePage(wxWindow* parent)
     : WelcomePageBase(parent)
 {
+#ifndef __WXMAC__
     SetBackgroundColour(clSystemSettings::GetDefaultPanelColour());
     GetMainPanel()->SetBackgroundColour(clSystemSettings::GetDefaultPanelColour());
+#endif
 
     GetSizer()->Fit(this);
     EventNotifier::Get()->Bind(wxEVT_BITMAPS_UPDATED, &WelcomePage::OnThemeChanged, this);
@@ -97,6 +108,13 @@ WelcomePage::WelcomePage(wxWindow* parent)
     GetSizer()->Layout();
     // set the focus to the tree
     m_dvTreeCtrlWorkspaces->CallAfter(&clTreeCtrl::SetFocus);
+
+    wxColour bg_colour, text_colour;
+    get_caption_colours(&bg_colour, &text_colour);
+
+    m_panelList->SetBackgroundColour(bg_colour);
+    m_panelList->SetForegroundColour(text_colour);
+    m_staticText0->SetForegroundColour(text_colour);
 }
 
 WelcomePage::~WelcomePage()
@@ -109,12 +127,20 @@ void WelcomePage::OnSize(wxSizeEvent& event) { event.Skip(); }
 void WelcomePage::OnThemeChanged(clCommandEvent& e)
 {
     e.Skip();
+    wxColour bg_colour, text_colour;
+    get_caption_colours(&bg_colour, &text_colour);
+
+    m_panelList->SetBackgroundColour(bg_colour);
+    m_panelList->SetForegroundColour(text_colour);
+    m_staticText0->SetForegroundColour(text_colour);
+
+#ifndef __WXMAC__
     SetBackgroundColour(clSystemSettings::GetDefaultPanelColour());
     GetMainPanel()->SetBackgroundColour(clSystemSettings::GetDefaultPanelColour());
     GetDvTreeCtrlWorkspaces()->SetBackgroundColour(clSystemSettings::GetDefaultPanelColour());
     GetDvTreeCtrlWorkspaces()->SetBitmaps(clGetManager()->GetStdIcons()->GetStandardMimeBitmapListPtr());
-    m_staticText0->SetForegroundColour(clSystemSettings::GetColour(wxSYS_COLOUR_BTNTEXT));
     Refresh();
+#endif
 }
 
 void WelcomePage::OnNewWorkspace(wxCommandEvent& event)

@@ -1,11 +1,20 @@
 #include "clGenericNotebook.hpp"
 
+#include "ColoursAndFontsManager.h"
 #include "JSON.h"
 #include "clColours.h"
 #include "clSystemSettings.h"
 #include "clTabRendererMinimal.hpp"
+#include "cl_command_event.h"
 #include "codelite_events.h"
+#include "drawingutils.h"
+#include "editor_config.h"
 #include "event_notifier.h"
+#include "file_logger.h"
+#include "globals.h"
+#include "imanager.h"
+#include "lexer_configuration.h"
+#include "wxStringHash.h"
 
 #include <algorithm>
 #include <wx/app.h>
@@ -19,24 +28,6 @@
 #include <wx/wupdlock.h>
 #include <wx/xrc/xh_bmp.h>
 #include <wx/xrc/xmlres.h>
-
-#if defined(WXUSINGDLL_CL) || defined(USE_SFTP) || defined(PLUGINS_DIR)
-#define CL_BUILD 1
-#endif
-
-#if CL_BUILD
-#include "ColoursAndFontsManager.h"
-#include "cl_command_event.h"
-#include "codelite_events.h"
-#include "drawingutils.h"
-#include "editor_config.h"
-#include "event_notifier.h"
-#include "file_logger.h"
-#include "globals.h"
-#include "imanager.h"
-#include "lexer_configuration.h"
-#endif
-#include "wxStringHash.h"
 
 namespace
 {
@@ -253,11 +244,33 @@ clTabCtrl::clTabCtrl(wxWindow* notebook, size_t style)
     Bind(wxEVT_MOUSEWHEEL, &clTabCtrl::OnMouseScroll, this);
     Bind(wxEVT_CONTEXT_MENU, &clTabCtrl::OnContextMenu, this);
     Bind(wxEVT_LEFT_DCLICK, &clTabCtrl::OnLeftDClick, this);
+
+    // call refresh when leaving the window
+    Bind(wxEVT_LEAVE_WINDOW, [this](wxMouseEvent& e) {
+        e.Skip();
+        // reset the close button state
+        for(auto tab : m_tabs) {
+            tab->m_xButtonState = eButtonState::kNormal;
+        }
+        Refresh();
+    });
+
+    wxTheApp->Bind(wxEVT_ACTIVATE_APP, &clTabCtrl::OnActivateApp, this);
+
     SetStyle(m_style);
     m_colours.UpdateColours(m_style);
 
     // The history object
     m_history.reset(new clTabHistory());
+}
+
+void clTabCtrl::OnActivateApp(wxActivateEvent& e)
+{
+    e.Skip(); // reset the close button state
+    for(auto tab : m_tabs) {
+        tab->m_xButtonState = eButtonState::kNormal;
+    }
+    Refresh();
 }
 
 void clTabCtrl::DoSetBestSize()
@@ -347,6 +360,7 @@ clTabCtrl::~clTabCtrl()
     Unbind(wxEVT_CONTEXT_MENU, &clTabCtrl::OnContextMenu, this);
     Unbind(wxEVT_LEFT_DCLICK, &clTabCtrl::OnLeftDClick, this);
     Unbind(wxEVT_MOUSEWHEEL, &clTabCtrl::OnMouseScroll, this);
+    wxTheApp->Unbind(wxEVT_ACTIVATE_APP, &clTabCtrl::OnActivateApp, this);
     wxDELETE(m_bitmaps);
 }
 
@@ -368,9 +382,7 @@ void clTabCtrl::OnPaint(wxPaintEvent& e)
     PrepareDC(gcdc);
 
     wxRect clientRect(GetClientRect());
-    if(clientRect.width <= 3)
-        return;
-    if(clientRect.height <= 3)
+    if(clientRect.width <= 3 || clientRect.height <= 3)
         return;
 
     wxRect rect(GetClientRect());
@@ -410,25 +422,40 @@ void clTabCtrl::OnPaint(wxPaintEvent& e)
     UpdateVisibleTabs();
     gcdc.SetClippingRegion(clientRect.x, clientRect.y, clientRect.width - m_chevronRect.GetWidth(), clientRect.height);
 
+    // check if the mouse is over a visible tab
+    int tabHit, realPos;
+    eDirection align;
+    auto mousePos = GetParent()->ScreenToClient(::wxGetMousePosition());
+    TestPoint(mousePos, realPos, tabHit, align);
+
+    wxUnusedVar(realPos);
+    wxUnusedVar(align);
+
     clTabInfo::Ptr_t activeTab;
+    int activeTabIndex = wxNOT_FOUND;
     for(int i = (m_visibleTabs.size() - 1); i >= 0; --i) {
         clTabInfo::Ptr_t tab = m_visibleTabs[i];
         if(tab->IsActive() && !activeTab) {
             activeTab = tab;
+            activeTabIndex = i;
         }
 
         clTabColours* pColours = &m_colours;
         clTabColours user_colours;
-        m_art->Draw(this, gcdc, gcdc, *tab.get(), (*pColours), m_style, tab->m_xButtonState);
+
+        m_art->Draw(this, gcdc, gcdc, *tab.get(), i, (*pColours), m_style,
+                    tabHit == i ? eButtonState::kHover : eButtonState::kNormal, tab->m_xButtonState);
     }
 
     if(!activeTab) {
         m_tabs[0]->SetActive(true, GetStyle());
         activeTab = m_tabs[0]; // make the first tab, the default one
+        activeTabIndex = 0;
     }
 
     // Redraw the active tab
-    m_art->Draw(this, gcdc, gcdc, *activeTab.get(), activeTabColours, m_style, activeTab->m_xButtonState);
+    m_art->Draw(this, gcdc, gcdc, *activeTab.get(), activeTabIndex, activeTabColours, m_style, eButtonState::kNormal,
+                activeTab->m_xButtonState);
     gcdc.DestroyClippingRegion();
 
     m_art->FinaliseBackground(this, gcdc, clientRect, activeTab->GetRect(), m_colours, m_style);
@@ -436,27 +463,15 @@ void clTabCtrl::OnPaint(wxPaintEvent& e)
 
 void clTabCtrl::DoUpdateCoordiantes(clTabInfo::Vec_t& tabs)
 {
-    int majorDimension = 0;
-    if(IsVerticalTabs() && GetStyle() & kNotebook_ShowFileListButton) {
-        majorDimension = 2;
-    }
-
+    int xx = 0;
     wxRect clientRect = GetClientRect();
     for(size_t i = 0; i < tabs.size(); ++i) {
-        clTabInfo::Ptr_t tab = tabs.at(i);
-        if(IsVerticalTabs()) {
-            tab->GetRect().SetX(0);
-            tab->GetRect().SetY(majorDimension);
-            tab->GetRect().SetWidth(clientRect.GetWidth());
-            tab->GetRect().SetHeight(tab->GetHeight());
-            majorDimension += tab->GetHeight();
-        } else {
-            tab->GetRect().SetX(majorDimension);
-            tab->GetRect().SetY(0);
-            tab->GetRect().SetWidth(tab->GetWidth());
-            tab->GetRect().SetHeight(clientRect.GetHeight());
-            majorDimension += tab->GetWidth() - GetArt()->overlapWidth;
-        }
+        clTabInfo::Ptr_t tab = tabs[i];
+        tab->GetRect().SetX(xx);
+        tab->GetRect().SetY(0);
+        tab->GetRect().SetWidth(tab->GetWidth());
+        tab->GetRect().SetHeight(clientRect.GetHeight());
+        xx += tab->GetWidth();
     }
 }
 
@@ -595,19 +610,13 @@ clTabInfo::Ptr_t clTabCtrl::GetTabInfo(wxWindow* page)
 bool clTabCtrl::SetPageText(size_t page, const wxString& text)
 {
     clTabInfo::Ptr_t tab = GetTabInfo(page);
-    if(!tab)
+    if(!tab) {
         return false;
-
-    int oldWidth = tab->GetWidth();
+    }
     tab->SetLabel(text, GetStyle());
-    int newWidth = tab->GetWidth();
-    int diff = (newWidth - oldWidth);
 
-    // Update the width of the tabs from the current tab by "diff"
-    DoUpdateXCoordFromPage(tab->GetWindow(), diff);
-
-    // Redraw the tab control
-    Refresh();
+    // trigger an "on-size" event
+    PostSizeEventToParent();
     return true;
 }
 
@@ -812,20 +821,11 @@ void clTabCtrl::TestPoint(const wxPoint& pt, int& realPosition, int& tabHit, eDi
         clTabInfo::Ptr_t tab = m_visibleTabs.at(i);
         wxRect r(tab->GetRect());
         if(r.Contains(pt)) {
-            if(IsVerticalTabs()) {
-                if(pt.y > ((r.GetHeight() / 2) + r.GetY())) {
-                    // the point is on the RIGHT side
-                    align = eDirection::kUp;
-                } else {
-                    align = eDirection::kDown;
-                }
+            if(pt.x > ((r.GetWidth() / 2) + r.GetX())) {
+                // the point is on the RIGHT side
+                align = eDirection::kRight;
             } else {
-                if(pt.x > ((r.GetWidth() / 2) + r.GetX())) {
-                    // the point is on the RIGHT side
-                    align = eDirection::kRight;
-                } else {
-                    align = eDirection::kLeft;
-                }
+                align = eDirection::kLeft;
             }
             tabHit = i;
             realPosition = DoGetPageIndex(tab->GetWindow());

@@ -23,12 +23,16 @@
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
+#include "perspectivemanager.h"
+
 #include "debuggerpane.h"
 #include "editor_config.h"
+#include "file_logger.h"
 #include "fileutils.h"
 #include "frame.h"
 #include "globals.h"
-#include "perspectivemanager.h"
+#include "macros.h"
+
 #include <wx/aui/framemanager.h>
 #include <wx/stdpaths.h>
 
@@ -43,12 +47,12 @@ PerspectiveManager::PerspectiveManager()
     if(active.IsEmpty() == false) {
         m_active = active;
     }
-    ClearIds();
 }
 
 PerspectiveManager::~PerspectiveManager()
 {
     DisconnectEvents();
+    FlushCacheToDisk();
 }
 
 void PerspectiveManager::DeleteAllPerspectives()
@@ -56,132 +60,55 @@ void PerspectiveManager::DeleteAllPerspectives()
     wxArrayString files;
     wxDir::GetAllFiles(clStandardPaths::Get().GetUserDataDir() + wxT("/config/"), &files, wxT("*.layout"));
 
-    wxLogNull noLog;
-    for(size_t i = 0; i < files.GetCount(); i++) {
-        clRemoveFile(files.Item(i));
+    {
+        wxLogNull noLog;
+        for(size_t i = 0; i < files.GetCount(); i++) {
+            clRemoveFile(files.Item(i));
+        }
     }
+    m_perspectives.clear();
 }
 
 void PerspectiveManager::LoadPerspective(const wxString& name)
 {
-    wxString pname = name;
-    if(pname.IsEmpty()) {
-        pname = m_active;
-    }
-
-    wxString file = DoGetPathFromName(pname);
+    m_active = name;
     wxString content;
-
-    if(ReadFileWithConversion(file, content)) {
+    if(GetPerspective(name, &content)) {
         clMainFrame::Get()->GetDockingManager().LoadPerspective(content);
-        m_active = pname;
+        m_active = name;
         EditorConfigST::Get()->SetString(wxT("ActivePerspective"), m_active);
-
-        if(pname == DEBUG_LAYOUT) {
-            DoEnsureDebuggerPanesAreVisible();
-        }
-
-    } else {
-        if(pname == DEBUG_LAYOUT) {
-            DoEnsureDebuggerPanesAreVisible();
-
-            SavePerspective(pname);
-            m_active = pname;
-            EditorConfigST::Get()->SetString(wxT("ActivePerspective"), m_active);
-
-        } else if(pname == NORMAL_LAYOUT) {
-            // Requested to load the Normal layout but we got no such layout
-            // Make the current one the default layout
-            SavePerspective(pname);
-            m_active = pname;
-            EditorConfigST::Get()->SetString(wxT("ActivePerspective"), m_active);
-        }
     }
+
+    // in case we are loading the debugger perspective, ensure that the debugger panes are visible
+    if(name == DEBUG_LAYOUT) {
+        DoEnsureDebuggerPanesAreVisible();
+    }
+    clGetManager()->GetDockingManager()->Update();
 }
 
 void PerspectiveManager::SavePerspective(const wxString& name, bool notify)
 {
     wxString pname = name;
-    if(pname.IsEmpty()) {
+    if(pname.empty()) {
         pname = GetActive();
     }
 
-    WriteFileWithBackup(DoGetPathFromName(pname), clMainFrame::Get()->GetDockingManager().SavePerspective(), false);
+    wxString currentLayout = clGetManager()->GetDockingManager()->SavePerspective();
+    SetPerspectiveToCache(name, currentLayout);
+    bool save_required = (m_active != pname);
     m_active = pname;
 
-    EditorConfigST::Get()->SetString(wxT("ActivePerspective"), m_active);
+    if(save_required) {
+        EditorConfigST::Get()->SetString(wxT("ActivePerspective"), m_active);
+    }
+
     if(notify) {
         wxCommandEvent evt(wxEVT_REFRESH_PERSPECTIVE_MENU);
         clMainFrame::Get()->GetEventHandler()->AddPendingEvent(evt);
     }
 }
 
-wxArrayString PerspectiveManager::GetAllPerspectives()
-{
-    wxArrayString files, perspectives;
-    wxDir::GetAllFiles(clStandardPaths::Get().GetUserDataDir() + wxT("/config/"), &files, wxT("*.layout"));
-
-    for(size_t i = 0; i < files.GetCount(); i++) {
-        wxFileName fn(files.Item(i));
-        wxString name = fn.GetFullName();
-        perspectives.Add(name);
-    }
-    return perspectives;
-}
-
-void PerspectiveManager::ClearIds()
-{
-    m_menuIdToName.clear();
-    m_nextId = FirstMenuId();
-}
-
-int PerspectiveManager::MenuIdFromName(const wxString& name)
-{
-    std::map<wxString, int>::iterator iter = m_menuIdToName.find(name);
-    if(iter == m_menuIdToName.end()) {
-        m_menuIdToName[name] = ++m_nextId;
-        return m_menuIdToName[name];
-    }
-    return iter->second;
-}
-
-wxString PerspectiveManager::NameFromMenuId(int id)
-{
-    std::map<wxString, int>::iterator iter = m_menuIdToName.begin();
-    for(; iter != m_menuIdToName.end(); iter++) {
-        if(iter->second == id) {
-            return iter->first;
-        }
-    }
-    return wxT("");
-}
-
-void PerspectiveManager::LoadPerspectiveByMenuId(int id)
-{
-    wxString name = NameFromMenuId(id);
-    if(name.IsEmpty())
-        return;
-
-    LoadPerspective(name);
-}
-
-void PerspectiveManager::Delete(const wxString& name)
-{
-    wxLogNull noLog;
-    wxString path = DoGetPathFromName(name);
-    clRemoveFile(path);
-}
-
-void PerspectiveManager::Rename(const wxString& old, const wxString& new_name)
-{
-    wxString oldPath = DoGetPathFromName(old);
-    wxString newPath = DoGetPathFromName(new_name);
-
-    wxLogNull noLog;
-    wxRename(oldPath, newPath);
-}
-
-wxString PerspectiveManager::DoGetPathFromName(const wxString& name)
+wxString PerspectiveManager::DoGetPathFromName(const wxString& name) const
 {
     wxString file;
     wxString filename = name;
@@ -203,10 +130,7 @@ void PerspectiveManager::SavePerspectiveIfNotExists(const wxString& name)
     }
 }
 
-bool PerspectiveManager::IsDefaultActive() const
-{
-    return GetActive().CmpNoCase(NORMAL_LAYOUT) == 0;
-}
+bool PerspectiveManager::IsDefaultActive() const { return GetActive().CmpNoCase(NORMAL_LAYOUT) == 0; }
 
 void PerspectiveManager::DoEnsureDebuggerPanesAreVisible()
 {
@@ -266,7 +190,8 @@ void PerspectiveManager::ConnectEvents(wxAuiManager* mgr)
 {
     m_aui = mgr;
     if(m_aui) {
-        mgr->Connect(wxEVT_AUI_PANE_BUTTON, wxAuiManagerEventHandler(PerspectiveManager::OnPaneClosing), NULL, this);
+        mgr->Bind(wxEVT_AUI_PANE_BUTTON, &PerspectiveManager::OnPaneClosing, this);
+        mgr->Bind(wxEVT_AUI_RENDER, &PerspectiveManager::OnAuiRender, this);
     }
 }
 
@@ -281,36 +206,6 @@ void PerspectiveManager::ToggleOutputPane(bool hide)
 
     pane_info.Show(!hide);
     m_aui->Update();
-    //    if(hide && pane_info.IsShown()) {
-    //        pane_info.Hide();
-    //    } else if(!hide && !pane_info.IsShown()) {
-    //
-    //    }
-    //    m_aui->Update();
-    //    if(hide && pane_info.IsShown()) {
-    //    } else {
-    //
-    //    }
-    //    if(pane_info.IsOk() && !pane_info.IsShown()) {
-    //        // keep the last perspective where the output view
-    //        // was visible
-    //        m_buildPerspective = m_aui->SavePerspective();
-    //    }
-    //
-    //    if(pane_info.IsOk() && hide && pane_info.IsShown()) {
-    //        pane_info.Hide();
-    //        m_aui->Update();
-    //
-    //    } else if(pane_info.IsOk() && !hide && !pane_info.IsShown()) {
-    //        if(!m_buildPerspective.IsEmpty()) {
-    //            m_aui->LoadPerspective(m_buildPerspective, true);
-    //
-    //        } else {
-    //            // Else just show it
-    //            pane_info.Show();
-    //            m_aui->Update();
-    //        }
-    //    }
 }
 
 void PerspectiveManager::DisconnectEvents()
@@ -335,5 +230,54 @@ void PerspectiveManager::DoShowPane(const wxString& panename, bool show, bool& n
             pane_info.Show(false);
             needUpdate = true;
         }
+    }
+}
+
+void PerspectiveManager::OnAuiRender(wxAuiManagerEvent& event)
+{
+    event.Skip();
+    CHECK_PTR_RET(m_aui);
+    CHECK_COND_RET(!GetActive().IsEmpty());
+    SavePerspective(GetActive(), false);
+}
+
+bool PerspectiveManager::GetPerspective(const wxString& name, wxString* perspective) const
+{
+    if(m_perspectives.count(name)) {
+        *perspective = m_perspectives.find(name)->second;
+        return true;
+    }
+
+    wxString path = DoGetPathFromName(name);
+    if(!wxFileName::FileExists(path)) {
+        return false;
+    }
+
+    wxString content;
+    if(!FileUtils::ReadFileContent(path, content)) {
+        clWARNING() << "Failed to read perspective file:" << path << endl;
+        return false;
+    }
+    *perspective = content;
+    return true;
+}
+
+void PerspectiveManager::SetPerspectiveToCache(const wxString& name, const wxString& content)
+{
+    if(m_perspectives.count(name)) {
+        m_perspectives.erase(name);
+    }
+    m_perspectives.insert({ name, content });
+}
+
+void PerspectiveManager::FlushCacheToDisk()
+{
+    for(const auto& vt : m_perspectives) {
+        const wxString& name = vt.first;
+        const wxString& value = vt.second;
+
+        wxString path = DoGetPathFromName(name);
+        FileUtils::WriteFileContent(path, value);
+        clDEBUG() << "Saving perspective:" << name << "to file:" << path << endl;
     }
 }

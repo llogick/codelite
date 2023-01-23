@@ -8,7 +8,8 @@ RustWorkspace::RustWorkspace() { SetWorkspaceType("Rust"); }
 
 RustWorkspace::~RustWorkspace() {}
 
-wxFileName RustWorkspace::GetFileName() const { return clFileSystemWorkspace::Get().GetFileName(); }
+wxString RustWorkspace::GetFileName() const { return clFileSystemWorkspace::Get().GetFileName(); }
+wxString RustWorkspace::GetDir() const { return clFileSystemWorkspace::Get().GetDir(); }
 wxString RustWorkspace::GetFilesMask() const { return clFileSystemWorkspace::Get().GetFilesMask(); }
 wxFileName RustWorkspace::GetProjectFileName(const wxString& projectName) const
 {
@@ -36,3 +37,5 @@ wxString RustWorkspace::GetName() const { return clFileSystemWorkspace::Get().Ge
 void RustWorkspace::SetProjectActive(const wxString& name) { wxUnusedVar(name); }
 
 wxString RustWorkspace::GetDebuggerName() const { return clFileSystemWorkspace::Get().GetDebuggerName(); }
+
+clEnvList_t RustWorkspace::GetEnvironment() const { return clFileSystemWorkspace::Get().GetEnvironment(); }

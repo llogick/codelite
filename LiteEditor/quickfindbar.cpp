@@ -27,7 +27,6 @@
 
 #include "bitmap_loader.h"
 #include "bookmark_manager.h"
-#include "clBitmapOverlayCtrl.h"
 #include "clSystemSettings.h"
 #include "cl_command_event.h"
 #include "cl_config.h"
@@ -94,9 +93,21 @@ void CenterLine(wxStyledTextCtrl* ctrl, int start_pos, int end_pos)
     clEditor::CenterLinePreserveSelection(ctrl, line);
 }
 
+wxBorder get_border_simple_theme_aware_bit()
+{
+#ifdef __WXMAC__
+    return wxBORDER_SIMPLE;
+#elif defined(__WXGTK__)
+    return wxBORDER_STATIC;
+#else
+    return clSystemSettings::Get().IsDark() ? wxBORDER_SIMPLE : wxBORDER_STATIC;
+#endif
+}
 } // namespace
+
 QuickFindBar::QuickFindBar(wxWindow* parent, wxWindowID id)
-    : QuickFindBarBase(parent, id)
+    : QuickFindBarBase(parent, id, wxDefaultPosition, wxDefaultSize,
+                       wxTAB_TRAVERSAL | get_border_simple_theme_aware_bit())
     , m_sci(NULL)
     , m_lastTextPtr(NULL)
     , m_eventsConnected(false)
@@ -108,15 +119,14 @@ QuickFindBar::QuickFindBar(wxWindow* parent, wxWindowID id)
 {
     m_toolbar->SetMiniToolBar(true);
     auto images = m_toolbar->GetBitmapsCreateIfNeeded();
-    m_toolbar->AddTool(wxID_CLOSE, _("Close"), images->Add("file_close"), _("Close"), wxITEM_NORMAL);
-    m_toolbar->AddSeparator();
-    m_toolbar->AddStretchableSpace();
     m_toolbar->AddTool(XRCID("case-sensitive"), _("Case Sensitive"), images->Add("case-sensitive"), "", wxITEM_CHECK);
     m_toolbar->AddTool(XRCID("whole-word"), _("Whole word"), images->Add("whole-word"), "", wxITEM_CHECK);
     m_toolbar->AddTool(XRCID("use-regex"), _("Regex"), images->Add("regular-expression"), "", wxITEM_CHECK);
     m_toolbar->AddTool(XRCID("highlight-matches"), _("Highlight matches"), images->Add("marker"), "", wxITEM_CHECK);
     m_toolbar->AddTool(XRCID("replace-in-selection"), _("In Selection"), images->Add("text_selection"), "",
                        wxITEM_CHECK);
+    m_toolbar->AddStretchableSpace();
+    m_toolbar->AddTool(wxID_CLOSE, _("Close"), images->Add("file_close"), _("Close"), wxITEM_NORMAL);
     m_toolbar->Realize();
     m_toolbar->Bind(wxEVT_TOOL, &QuickFindBar::OnHide, this, wxID_CLOSE);
     m_toolbar->Bind(
@@ -195,7 +205,7 @@ QuickFindBar::QuickFindBar(wxWindow* parent, wxWindowID id)
     // Make sure that the 'Replace' field is selected when we hit TAB while in the 'Find' field
     m_textCtrlReplace->MoveAfterInTabOrder(m_textCtrlFind);
     // Bind(wxEVT_PAINT, &QuickFindBar::OnPaint, this);
-    Bind(wxEVT_ERASE_BACKGROUND, [](wxEraseEvent& e) { wxUnusedVar(e); });
+    // Bind(wxEVT_ERASE_BACKGROUND, [](wxEraseEvent& e) { wxUnusedVar(e); });
     GetSizer()->Fit(this);
     Layout();
 }
@@ -771,7 +781,7 @@ void QuickFindBar::DoReplaceAll(bool selectionOnly)
     unsigned int utfLen = ::clUTF8Length(input_buffer.ToStdWstring().c_str(), input_buffer.length());
     isUTF8 = (utfLen != input_buffer.length());
 
-    if(!IsReplacementRegex() && !isUTF8) {
+    if(!(m_searchFlags & wxSTC_FIND_REGEXP) && !IsReplacementRegex() && !isUTF8) {
         // simple search, we can optimize it by applying the replacement on
         // a buffer instead of the editor
         replacements_done = DoReplaceInBuffer(target);
