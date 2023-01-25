@@ -1231,14 +1231,15 @@ void BuilderGNUMakeClassic::CreateConfigsVariables(ProjectPtr proj, BuildConfigP
     wxString mkdirCommand = cmp->GetTool("MakeDirCommand");
     if(!mkdirCommand.IsEmpty()) {
         // use the compiler defined one
-        text << wxT("MakeDirCommand         :=") << mkdirCommand << wxT("\n");
-
+        text << wxT("MakeDirCommand         :=") << StringUtils::WrapWithDoubleQuotes(mkdirCommand) << wxT("\n");
     } else {
+        mkdirCommand = "mkdir";
         if(OS_WINDOWS) {
-            text << wxT("MakeDirCommand         :=") << wxT("makedir") << wxT("\n");
-        } else {
-            text << wxT("MakeDirCommand         :=") << wxT("mkdir -p") << wxT("\n");
+            // we provide mkdir, use it
+            mkdirCommand = clStandardPaths::Get().GetBinaryFullPath("mkdir", true);
         }
+        text << wxT("MakeDirCommand         :=") << StringUtils::WrapWithDoubleQuotes(mkdirCommand) << " -p"
+             << wxT("\n");
     }
 
     wxString buildOpts = bldConf->GetCompileOptions();
